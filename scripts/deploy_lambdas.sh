@@ -21,18 +21,24 @@ deploy_function() {
     echo "📦 Packaging ${func_name}..."
     cd "$LAMBDA_DIR/$func_dir"
     rm -rf package/ *.zip
-    pip install -r requirements.txt -t package/ --quiet
+    pip3 install -r requirements.txt -t package/ --quiet
     cp handler.py package/
     cd package
     zip -r9 "../${func_name}.zip" . > /dev/null
     cd ..
 
+    local s3_bucket="${PROJECT}-lambda-deploy-${ENV}-$(aws sts get-caller-identity --query Account --output text)"
+    local s3_key="lambda/${func_name}.zip"
+
+    echo "⬆️  Uploading to s3://${s3_bucket}/${s3_key}..."
+    aws s3 cp "${func_name}.zip" "s3://${s3_bucket}/${s3_key}" --region "$REGION"
+
     echo "🚀 Deploying ${aws_name}..."
     aws lambda update-function-code \
         --function-name "$aws_name" \
-        --zip-file "fileb://${func_name}.zip" \
-        --region "$REGION" \
-        --no-cli-pager
+        --s3-bucket "$s3_bucket" \
+        --s3-key "$s3_key" \
+        --region "$REGION"
 
     rm -rf package/
     echo "✅ ${aws_name} deployed"

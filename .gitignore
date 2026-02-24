@@ -39,3 +39,19 @@ _cloud_archive/
 # dbt docs (generated, regenerate with make docs)
 dashboard/public/lineage/
 dashboard/public/data/stream_events.json
+
+# Terraform
+infra/terraform/.terraform/
+infra/terraform/.terraform.lock.hcl
+infra/terraform/*.tfstate*
+infra/terraform/placeholder.zip
+infra/terraform/tfplan
+infra/terraform/tfplan.*
+
+# Lambda build artifacts
+lambda/*/package/
+lambda/*/*.zip
+
+# Dashboard data (generated from pipeline)
+dashboard/public/data/*.json
+!dashboard/public/data/.gitkeep

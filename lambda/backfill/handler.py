@@ -1,18 +1,16 @@
-"""AWS Lambda handler — Backfill EPL season data.
+"""AWS Lambda — Backfill EPL season data.
 
-Fetches all matches for the current season from football-data.org and writes
-Parquet to S3 data lake. Safe to run multiple times — deduplication happens
-at the Athena/dbt layer via match_id.
+Fetches complete season data (all matchdays) from football-data.org.
+Writes per-matchday JSON files to S3 for historical completeness.
 """
 
 import json
 import logging
 import os
+import time
 from datetime import datetime, timezone
-from typing import Any
 
 import boto3
-import pandas as pd
 import requests
 
 logger = logging.getLogger()
@@ -21,90 +19,89 @@ logger.setLevel(logging.INFO)
 s3 = boto3.client("s3")
 
 BUCKET = os.environ["DATA_LAKE_BUCKET"]
-SECRET_ARN = os.environ["SECRET_ARN"]
+COMPETITION = "PL"
 
 
-def get_secret() -> dict:
+def get_api_key() -> str:
     client = boto3.client("secretsmanager")
-    resp = client.get_secret_value(SecretId=SECRET_ARN)
-    return json.loads(resp["SecretString"])
-
-
-def write_parquet_to_s3(df: pd.DataFrame, key: str) -> int:
-    if df.empty:
-        return 0
-    buf = df.to_parquet(index=False)
-    s3.put_object(Bucket=BUCKET, Key=key, Body=buf, ContentType="application/octet-stream")
-    logger.info("Wrote %d rows to s3://%s/%s", len(df), BUCKET, key)
-    return len(df)
-
-
-def fetch_all_matches(api_key: str) -> list[dict[str, Any]]:
-    """Fetch all matches for current EPL season from football-data.org."""
-    headers = {"X-Auth-Token": api_key}
-    url = "https://api.football-data.org/v4/competitions/PL/matches"
-
-    r = requests.get(url, headers=headers, timeout=30)
-    r.raise_for_status()
-    payload = r.json()
-
-    competition = payload.get("competition", {}).get("name", "Premier League")
-    season_start = payload.get("filters", {}).get("season", "2025")
-
-    rows = []
-    for m in payload.get("matches", []):
-        rows.append({
-            "source": "football-data.org",
-            "match_id": str(m.get("id")),
-            "competition": competition,
-            "season": str(season_start),
-            "utc_date": m.get("utcDate"),
-            "status": m.get("status"),
-            "minute": None,
-            "home_team_name": m.get("homeTeam", {}).get("name"),
-            "away_team_name": m.get("awayTeam", {}).get("name"),
-            "home_score": m.get("score", {}).get("fullTime", {}).get("home"),
-            "away_score": m.get("score", {}).get("fullTime", {}).get("away"),
-            "winner": m.get("score", {}).get("winner"),
-            "matchday": m.get("matchday"),
-        })
-    return rows
+    resp = client.get_secret_value(SecretId=os.environ["SECRET_ARN"])
+    return json.loads(resp["SecretString"])["FOOTBALL_DATA_API_KEY"]
 
 
 def handler(event, context):
-    """Lambda entry point."""
+    """Backfill handler. Pass {"season": "2025"} to specify season."""
     logger.info("Backfill triggered: %s", json.dumps(event))
+    season = event.get("season", "2025")
+    ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
 
     try:
-        secrets = get_secret()
-        api_key = secrets.get("FOOTBALL_DATA_API_KEY", "").strip()
+        api_key = get_api_key()
+        headers = {"X-Auth-Token": api_key}
+        base = "https://api.football-data.org/v4"
 
-        if not api_key:
-            return {"statusCode": 400, "body": json.dumps({"error": "FOOTBALL_DATA_API_KEY not configured"})}
+        # 1. All matches
+        resp = requests.get(
+            f"{base}/competitions/{COMPETITION}/matches?season={season}",
+            headers=headers, timeout=30,
+        )
+        resp.raise_for_status()
+        matches_data = resp.json()
+        matches = matches_data.get("matches", [])
 
-        rows = fetch_all_matches(api_key)
+        key = f"raw/matches/season_{season}/{ts}_backfill_all.json"
+        s3.put_object(Bucket=BUCKET, Key=key, Body=json.dumps(matches_data, default=str, indent=2), ContentType="application/json")
+        logger.info("Wrote %d matches to %s", len(matches), key)
 
-        if not rows:
-            return {"statusCode": 200, "body": json.dumps({"status": "no_matches"})}
+        # 2. Per-matchday breakdown
+        matchdays = {}
+        for m in matches:
+            md = m.get("matchday", 0)
+            matchdays.setdefault(md, []).append(m)
 
-        now = datetime.now(timezone.utc)
-        df = pd.DataFrame(rows)
-        df["ingested_at"] = now.isoformat()
+        for md, md_matches in sorted(matchdays.items()):
+            md_key = f"raw/matches/season_{season}/matchday_{md:02d}/{ts}.json"
+            s3.put_object(
+                Bucket=BUCKET, Key=md_key,
+                Body=json.dumps({"matchday": md, "matches": md_matches}, default=str, indent=2),
+                ContentType="application/json",
+            )
 
-        ts = now.strftime("%Y%m%d_%H%M%S")
-        key = f"raw/live_matches/backfill/{ts}.parquet"
-        count = write_parquet_to_s3(df, key)
+        # 3. Standings
+        time.sleep(1)  # rate limit
+        resp = requests.get(
+            f"{base}/competitions/{COMPETITION}/standings?season={season}",
+            headers=headers, timeout=30,
+        )
+        resp.raise_for_status()
+        standings = resp.json()
+        s3.put_object(
+            Bucket=BUCKET,
+            Key=f"raw/standings/season_{season}/{ts}_backfill.json",
+            Body=json.dumps(standings, default=str, indent=2),
+            ContentType="application/json",
+        )
 
-        finished = len([r for r in rows if r["status"] == "FINISHED"])
-        scheduled = len([r for r in rows if r["status"] in ("TIMED", "SCHEDULED")])
+        # 4. Top scorers
+        time.sleep(1)
+        resp = requests.get(
+            f"{base}/competitions/{COMPETITION}/scorers?season={season}&limit=50",
+            headers=headers, timeout=30,
+        )
+        resp.raise_for_status()
+        scorers = resp.json()
+        s3.put_object(
+            Bucket=BUCKET,
+            Key=f"raw/top_scorers/season_{season}/{ts}_backfill.json",
+            Body=json.dumps(scorers, default=str, indent=2),
+            ContentType="application/json",
+        )
 
         result = {
             "status": "success",
-            "total_matches": len(rows),
-            "finished": finished,
-            "scheduled": scheduled,
-            "rows_written": count,
-            "timestamp": now.isoformat(),
+            "season": season,
+            "matches": len(matches),
+            "matchdays": len(matchdays),
+            "timestamp": ts,
         }
         logger.info("Backfill complete: %s", json.dumps(result))
         return {"statusCode": 200, "body": json.dumps(result)}
