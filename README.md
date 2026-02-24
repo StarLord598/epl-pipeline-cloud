@@ -388,3 +388,45 @@ epl-pipeline/
 *Pipeline automation by [Rocket 🦝](https://github.com/rocket-racoon-tech-bot)*
 
 - TEST
+---
+
+## ☁️ AWS Cloud Layer
+
+The pipeline includes an optional **AWS cloud deployment** that runs the same ingestion logic serverlessly.
+
+### Cloud Stack
+
+| Component | AWS Service | Purpose |
+|-----------|-------------|---------|
+| Data Lake | S3 (Parquet) | Medallion architecture: raw → staging → mart |
+| Ingestion | Lambda (x3) | daily_ingest, live_matches, backfill |
+| Scheduling | EventBridge | Cron triggers for each Lambda |
+| Catalog | Glue Catalog | Schema-on-read for Athena |
+| Query Engine | Athena | SQL analytics on S3 data |
+| Secrets | Secrets Manager | API key storage |
+| IaC | Terraform | All infrastructure as code |
+| CI/CD | GitHub Actions | OIDC-based deployment (no static keys) |
+
+### Quick Start (Cloud)
+
+```bash
+# 1. Bootstrap (creates state bucket + lock table)
+./scripts/setup_aws.sh
+
+# 2. Deploy infrastructure
+cd infra/terraform && terraform apply
+
+# 3. Deploy Lambda code
+./scripts/deploy_lambdas.sh
+
+# 4. Run dbt against Athena
+cd dbt && dbt run --target cloud
+```
+
+### Cost
+
+Estimated **~$1.65/month** for dev environment. See [docs/AWS_ARCHITECTURE.md](docs/AWS_ARCHITECTURE.md) for full breakdown.
+
+### Local vs Cloud
+
+Both targets work simultaneously — `dbt run` uses DuckDB locally, `dbt run --target cloud` uses Athena. The dashboard continues to serve from local JSON exports.
