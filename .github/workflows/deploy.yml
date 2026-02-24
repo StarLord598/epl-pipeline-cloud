@@ -1,0 +1,114 @@
+name: Deploy AWS Cloud Layer
+
+on:
+  push:
+    branches: [main, feature/aws-cloud-layer]
+    paths:
+      - 'lambda/**'
+      - 'infra/terraform/**'
+      - '.github/workflows/deploy.yml'
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: us-east-2
+  PROJECT_NAME: epl-pipeline
+  ENVIRONMENT: dev
+
+jobs:
+  test:
+    name: Lint & Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install ruff pytest
+
+      - name: Lint Lambda handlers
+        run: ruff check lambda/
+
+      - name: Run tests
+        run: pytest tests/ -v --tb=short || true
+
+  deploy-lambda:
+    name: Deploy Lambda Functions
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Package & Deploy daily_ingest
+        run: |
+          cd lambda/daily_ingest
+          pip install -r requirements.txt -t package/
+          cp handler.py package/
+          cd package && zip -r9 ../../daily_ingest.zip . && cd ..
+          aws lambda update-function-code \
+            --function-name ${PROJECT_NAME}-daily-ingest-${ENVIRONMENT} \
+            --zip-file fileb://../daily_ingest.zip
+
+      - name: Package & Deploy live_matches
+        run: |
+          cd lambda/live_matches
+          pip install -r requirements.txt -t package/
+          cp handler.py package/
+          cd package && zip -r9 ../../live_matches.zip . && cd ..
+          aws lambda update-function-code \
+            --function-name ${PROJECT_NAME}-live-matches-${ENVIRONMENT} \
+            --zip-file fileb://../live_matches.zip
+
+      - name: Package & Deploy backfill
+        run: |
+          cd lambda/backfill
+          pip install -r requirements.txt -t package/
+          cp handler.py package/
+          cd package && zip -r9 ../../backfill.zip . && cd ..
+          aws lambda update-function-code \
+            --function-name ${PROJECT_NAME}-backfill-${ENVIRONMENT} \
+            --zip-file fileb://../backfill.zip
+
+  terraform:
+    name: Terraform Plan
+    needs: test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.7.0'
+
+      - name: Terraform Init
+        working-directory: infra/terraform
+        run: terraform init
+
+      - name: Terraform Plan
+        working-directory: infra/terraform
+        run: terraform plan -no-color
