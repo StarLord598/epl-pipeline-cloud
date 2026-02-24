@@ -38,7 +38,7 @@ variable "lambda_timeout" {
 variable "github_org" {
   description = "GitHub org/user for OIDC provider"
   type        = string
-  default     = "andres-alvarez"
+  default     = "StarLord598"
 }
 
 variable "github_repo" {
