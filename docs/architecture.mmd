@@ -1,0 +1,46 @@
+%%{init: {'theme': 'dark', 'themeVariables': {'fontSize': '16px', 'primaryColor': '#38003c', 'lineColor': '#00ff85'}}}%%
+
+flowchart LR
+    subgraph SRC["🌐 Sources"]
+        direction TB
+        A1["⚽ football-data.org<br/><b>Live API</b>"]
+        A2["📦 StatsBomb<br/><b>Historical</b>"]
+    end
+
+    subgraph AIR["🔄 Airflow"]
+        direction TB
+        B1["<b>live_poll_15m</b><br/>⏰ Every 15 min"]
+        B2["<b>hourly_refresh</b><br/>⏰ Every hour"]
+        B3["<b>dbt_transform</b><br/>⏰ Every 30 min"]
+        B4["<b>daily_reconcile</b><br/>⏰ 2 AM daily"]
+    end
+
+    subgraph DWH["🏗️ DuckDB — Medallion"]
+        direction TB
+        C1["🥉 <b>Raw</b><br/>matches · events · lineups<br/>live_matches · live_standings"]
+        C2["🥈 <b>Staging</b><br/>stg_matches · stg_standings<br/>stg_events · silver_live"]
+        C3["🥇 <b>Mart</b><br/>league_table · top_scorers<br/>recent_results · live_monitor"]
+    end
+
+    subgraph OUT["📊 Serving"]
+        direction TB
+        D1["📄 JSON Export"]
+        D2["🖥️ Next.js<br/>Dashboard"]
+    end
+
+    A1 -->|"every 15 min"| B1
+    A1 -->|"hourly"| B2
+    A2 -->|"daily"| B4
+    B1 --> C1
+    B2 --> C1
+    B4 --> C1
+    B3 --> C2
+    C1 -->|"dbt"| C2
+    C2 -->|"dbt"| C3
+    C3 --> D1
+    D1 --> D2
+
+    style SRC fill:#0046A7,stroke:#00c8ff,color:#fff
+    style AIR fill:#38003c,stroke:#f97316,color:#fff
+    style DWH fill:#1a1a2e,stroke:#FFD700,color:#fff
+    style OUT fill:#0f4c3a,stroke:#00ff85,color:#fff

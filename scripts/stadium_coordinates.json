@@ -1,0 +1,22 @@
+[
+  {"team_name": "Arsenal", "stadium_name": "Emirates Stadium", "latitude": 51.5549, "longitude": -0.1084},
+  {"team_name": "Aston Villa", "stadium_name": "Villa Park", "latitude": 52.5092, "longitude": -1.8847},
+  {"team_name": "Bournemouth", "stadium_name": "Vitality Stadium", "latitude": 50.7352, "longitude": -1.8384},
+  {"team_name": "Brentford", "stadium_name": "Gtech Community Stadium", "latitude": 51.4907, "longitude": -0.2886},
+  {"team_name": "Brighton", "stadium_name": "American Express Stadium", "latitude": 50.8616, "longitude": -0.0837},
+  {"team_name": "Chelsea", "stadium_name": "Stamford Bridge", "latitude": 51.4817, "longitude": -0.1910},
+  {"team_name": "Crystal Palace", "stadium_name": "Selhurst Park", "latitude": 51.3983, "longitude": -0.0855},
+  {"team_name": "Everton", "stadium_name": "Goodison Park", "latitude": 53.4388, "longitude": -2.9664},
+  {"team_name": "Fulham", "stadium_name": "Craven Cottage", "latitude": 51.4749, "longitude": -0.2217},
+  {"team_name": "Ipswich Town", "stadium_name": "Portman Road", "latitude": 52.0545, "longitude": 1.1447},
+  {"team_name": "Leicester City", "stadium_name": "King Power Stadium", "latitude": 52.6204, "longitude": -1.1422},
+  {"team_name": "Liverpool", "stadium_name": "Anfield", "latitude": 53.4308, "longitude": -2.9609},
+  {"team_name": "Man City", "stadium_name": "Etihad Stadium", "latitude": 53.4831, "longitude": -2.2004},
+  {"team_name": "Man United", "stadium_name": "Old Trafford", "latitude": 53.4631, "longitude": -2.2913},
+  {"team_name": "Newcastle", "stadium_name": "St James' Park", "latitude": 54.9756, "longitude": -1.6217},
+  {"team_name": "Nottingham Forest", "stadium_name": "City Ground", "latitude": 52.9400, "longitude": -1.1329},
+  {"team_name": "Southampton", "stadium_name": "St Mary's Stadium", "latitude": 50.9058, "longitude": -1.3910},
+  {"team_name": "Tottenham", "stadium_name": "Tottenham Hotspur Stadium", "latitude": 51.6043, "longitude": -0.0662},
+  {"team_name": "West Ham", "stadium_name": "London Stadium", "latitude": 51.5387, "longitude": -0.0166},
+  {"team_name": "Wolves", "stadium_name": "Molineux Stadium", "latitude": 52.5903, "longitude": -2.1306}
+]

@@ -1,0 +1,22 @@
+# EPL Analytics Pipeline — Python Dependencies
+# Install: pip install -r requirements.txt
+
+# Core
+duckdb==1.4.4
+pandas==2.2.3
+requests==2.32.3
+python-dotenv==1.1.0
+
+# Data sources
+statsbombpy==1.13.1
+
+# dbt (local DuckDB)
+dbt-core>=1.8,<2.0
+dbt-duckdb>=1.8,<2.0
+
+# Testing
+pytest>=8.0,<9.0
+
+# Code quality (optional, used by CI)
+# ruff
+# sqlfluff

@@ -1,0 +1,497 @@
+version: 2
+
+sources:
+  - name: raw
+    schema: raw
+    description: "Bronze layer — raw API responses and batch loads. Append-only, never deleted."
+    freshness:
+      warn_after: {count: 24, period: hour}
+      error_after: {count: 72, period: hour}
+    loaded_at_field: ingested_at
+    tables:
+      - name: matches
+        description: "Historical EPL match results from StatsBomb Open Data. Batch-loaded, covers multiple seasons."
+        columns:
+          - name: match_id
+            description: "Unique match identifier from StatsBomb"
+            tests: [not_null]
+          - name: competition_id
+            description: "Competition identifier (e.g., 2 = Premier League)"
+          - name: competition_name
+            description: "Full competition name (e.g., 'Premier League')"
+          - name: season_id
+            description: "Season identifier from StatsBomb"
+          - name: season_name
+            description: "Season label (e.g., '2003/2004')"
+          - name: match_date
+            description: "Date the match was played"
+          - name: kick_off
+            description: "Scheduled kickoff time"
+          - name: home_team_id
+            description: "StatsBomb team ID for the home side"
+          - name: home_team_name
+            description: "Home team name"
+          - name: away_team_id
+            description: "StatsBomb team ID for the away side"
+          - name: away_team_name
+            description: "Away team name"
+          - name: home_score
+            description: "Goals scored by the home team"
+          - name: away_score
+            description: "Goals scored by the away team"
+          - name: match_status
+            description: "Match completion status (e.g., 'available')"
+          - name: matchday
+            description: "Matchday/gameweek number (1-38)"
+          - name: raw_json
+            description: "Full StatsBomb API response stored as JSON"
+          - name: ingested_at
+            description: "Timestamp when row was loaded into DuckDB"
+            tests: [not_null]
+
+      - name: events
+        description: "Match events from StatsBomb Open Data — passes, shots, tackles, goals, cards. 129K+ rows covering detailed in-match actions."
+        freshness: null
+        columns:
+          - name: event_id
+            description: "Unique event identifier from StatsBomb"
+          - name: match_id
+            description: "Foreign key to raw.matches"
+          - name: index_num
+            description: "Event sequence index within the match (chronological order)"
+          - name: period
+            description: "Match period: 1 = first half, 2 = second half, 3 = extra time first, 4 = extra time second, 5 = penalties"
+          - name: minute
+            description: "Minute of the match when the event occurred"
+          - name: second
+            description: "Second within the minute (0-59)"
+          - name: event_type
+            description: "Event type (e.g., Pass, Shot, Tackle, Goal, Foul, Dribble, Clearance)"
+          - name: team_id
+            description: "StatsBomb team ID of the team performing the event"
+          - name: team_name
+            description: "Team name that performed the event"
+          - name: player_id
+            description: "StatsBomb player ID"
+          - name: player_name
+            description: "Player who performed the event"
+          - name: position_name
+            description: "Player's position at the time (e.g., 'Left Back', 'Center Forward')"
+          - name: location_x
+            description: "X coordinate on the pitch (0-120 yards, left to right)"
+          - name: location_y
+            description: "Y coordinate on the pitch (0-80 yards, bottom to top)"
+          - name: sub_type
+            description: "Event sub-type (e.g., for Pass: 'Ground Pass', 'High Pass'; for Shot: 'Open Play')"
+          - name: outcome
+            description: "Outcome of the event (e.g., Complete, Saved, Off Target, Blocked, Goal)"
+          - name: raw_json
+            description: "Full StatsBomb event JSON with all nested attributes"
+          - name: ingested_at
+            description: "Timestamp when row was loaded into DuckDB"
+
+      - name: lineups
+        description: "Match lineups from StatsBomb Open Data — starting XI and substitutes per match."
+        freshness: null
+        columns:
+          - name: match_id
+            description: "Foreign key to raw.matches"
+          - name: team_id
+            description: "StatsBomb team ID"
+          - name: team_name
+            description: "Team name"
+          - name: player_id
+            description: "StatsBomb player ID"
+          - name: player_name
+            description: "Player full name"
+          - name: jersey_number
+            description: "Squad number worn by the player"
+          - name: position_id
+            description: "StatsBomb position ID"
+          - name: position_name
+            description: "Playing position (e.g., 'Goalkeeper', 'Right Back')"
+          - name: raw_json
+            description: "Full lineup JSON with card/substitution events"
+          - name: ingested_at
+            description: "Timestamp when row was loaded into DuckDB"
+
+      - name: top_scorers
+        description: "Top scorers for the 2023-24 EPL season. Includes goals, assists, penalty goals, and per-game metrics."
+        identifier: top_scorers_2324
+        freshness: null
+        columns:
+          - name: rank
+            description: "Scoring rank (1 = top scorer)"
+          - name: player_id
+            description: "Player identifier"
+          - name: player_name
+            description: "Player full name"
+          - name: team_name
+            description: "Team the player plays for"
+          - name: goals
+            description: "Total goals scored in the season"
+          - name: assists
+            description: "Total assists in the season"
+          - name: goal_contributions
+            description: "Goals + assists combined"
+          - name: matches_played
+            description: "Number of matches the player appeared in"
+          - name: goals_per_game
+            description: "Average goals per match played"
+          - name: assists_per_game
+            description: "Average assists per match played"
+          - name: ingested_at
+            description: "Timestamp when row was loaded into DuckDB"
+
+      - name: live_standings
+        description: >
+          Live EPL standings from football-data.org API. Append-only — every 15-min poll
+          appends a full snapshot. Multiple rows per team across ingests; deduplication
+          happens at the Silver layer. Used for audit trail and point-in-time reconstruction.
+        freshness:
+          warn_after: {count: 1, period: hour}
+          error_after: {count: 4, period: hour}
+        columns:
+          - name: source
+            description: "Data source identifier (football-data.org)"
+          - name: competition
+            description: "Competition name (Premier League)"
+          - name: season
+            description: "Season identifier (e.g., 2025-26)"
+          - name: position
+            description: "League position at time of ingestion (1-20)"
+          - name: team_name
+            description: "Team name as returned by the API (e.g., 'Arsenal FC')"
+          - name: played
+            description: "Total matches played"
+          - name: won
+            description: "Matches won"
+          - name: draw
+            description: "Matches drawn"
+          - name: lost
+            description: "Matches lost"
+          - name: goals_for
+            description: "Total goals scored"
+          - name: goals_against
+            description: "Total goals conceded"
+          - name: goal_difference
+            description: "Goals scored minus goals conceded"
+          - name: points
+            description: "Total league points (3 per win, 1 per draw)"
+          - name: form
+            description: "Recent form string from API (e.g., 'W,W,D,L,W')"
+          - name: raw_json
+            description: "Full API response stored as JSON for schema evolution safety"
+          - name: ingested_at
+            description: "Timestamp when this snapshot was captured"
+
+      - name: live_matches
+        description: >
+          Live EPL match data from football-data.org API. Append-only — every 15-min poll
+          appends rows for matches in the current window. The same match_id appears many times
+          across ingests; deduplication happens at Silver. Raw layer preserves full history.
+        freshness:
+          warn_after: {count: 1, period: hour}
+          error_after: {count: 4, period: hour}
+        columns:
+          - name: source
+            description: "Data source: football-data.org or thesportsdb (fallback)"
+          - name: match_id
+            description: "Unique match identifier from football-data.org"
+          - name: competition
+            description: "Competition name (Premier League)"
+          - name: season
+            description: "Season identifier (e.g., 2025-26)"
+          - name: utc_date
+            description: "Scheduled kickoff time in UTC"
+          - name: status
+            description: "Match status: SCHEDULED, TIMED, IN_PLAY, PAUSED, HALFTIME, FINISHED, POSTPONED"
+          - name: minute
+            description: "Current match minute (null if not in play)"
+          - name: home_team_name
+            description: "Home team name as returned by the API"
+          - name: away_team_name
+            description: "Away team name as returned by the API"
+          - name: home_score
+            description: "Home team goals (null if match hasn't started)"
+          - name: away_score
+            description: "Away team goals (null if match hasn't started)"
+          - name: winner
+            description: "Winning team name (null if draw or not yet played)"
+          - name: raw_json
+            description: "Full API match response as JSON — contains matchday, referees, venue, odds"
+          - name: ingested_at
+            description: "Timestamp when this row was ingested"
+
+      - name: pipeline_runs
+        description: "Pipeline execution log — tracks each ingestion run with status, row counts, and timing. Used for operational monitoring."
+        freshness: null
+        identifier: pipeline_runs
+        columns:
+          - name: run_id
+            description: "Unique run identifier (UUID)"
+          - name: pipeline_name
+            description: "Name of the pipeline that ran (e.g., 'ingest_live_matches')"
+          - name: status
+            description: "Run status: SUCCESS or FAILURE"
+          - name: details
+            description: "Human-readable run details or error message"
+          - name: rows_written
+            description: "Number of rows inserted during this run"
+          - name: created_at
+            description: "Timestamp when the run completed"
+
+      - name: player_stats
+        description: "Aggregated player statistics per match — event counts and position data derived from StatsBomb events."
+        freshness: null
+        identifier: player_stats
+        columns:
+          - name: match_id
+            description: "Foreign key to raw.matches"
+          - name: player_id
+            description: "StatsBomb player ID"
+          - name: player_name
+            description: "Player full name"
+          - name: team_id
+            description: "StatsBomb team ID"
+          - name: team_name
+            description: "Team name"
+          - name: position_name
+            description: "Player's primary position in the match"
+          - name: event_count
+            description: "Total number of events (touches) by this player in the match"
+          - name: raw_json
+            description: "Additional player stats as JSON"
+          - name: ingested_at
+            description: "Timestamp when row was loaded"
+
+      - name: stadium_weather
+        description: "Raw weather readings for EPL stadiums from Open-Meteo API. Append-only."
+        freshness: null
+        columns:
+          - name: team_name
+            description: "Team name matching dim_teams"
+          - name: stadium_name
+            description: "Stadium venue name"
+          - name: latitude
+            description: "Stadium latitude"
+          - name: longitude
+            description: "Stadium longitude"
+          - name: temperature_c
+            description: "Temperature in Celsius"
+          - name: humidity_pct
+            description: "Relative humidity %"
+          - name: wind_speed_kmh
+            description: "Wind speed km/h"
+          - name: precipitation_mm
+            description: "Precipitation mm"
+          - name: weather_code
+            description: "WMO weather code"
+          - name: weather_description
+            description: "Human-readable weather"
+          - name: fetched_at
+            description: "When weather was fetched"
+
+models:
+  - name: stg_matches
+    description: >
+      Cleaned historical EPL matches with derived winner field. Deduplicates raw.matches
+      by match_id. Adds computed winner column based on score comparison. One row per match.
+    columns:
+      - name: match_id
+        description: "Unique match identifier"
+        tests: [unique, not_null]
+      - name: competition_id
+        description: "Competition identifier"
+      - name: competition_name
+        description: "Full competition name"
+      - name: season_id
+        description: "Season identifier"
+      - name: season_name
+        description: "Season label"
+      - name: match_date
+        description: "Date the match was played"
+      - name: kick_off
+        description: "Scheduled kickoff time"
+      - name: home_team_id
+        description: "Home team identifier"
+      - name: home_team_name
+        description: "Home team name"
+      - name: away_team_id
+        description: "Away team identifier"
+      - name: away_team_name
+        description: "Away team name"
+      - name: home_score
+        description: "Home team goals"
+      - name: away_score
+        description: "Away team goals"
+      - name: winner
+        description: "Derived: winning team name, 'Draw', or null"
+      - name: match_status
+        description: "Match completion status"
+        tests: [not_null]
+      - name: matchday
+        description: "Gameweek number"
+      - name: ingested_at
+        description: "Ingestion timestamp"
+
+  - name: stg_standings
+    description: >
+      Historical EPL standings derived from raw.standings. Normalized team names
+      and computed metrics. One row per team.
+    columns:
+      - name: team_id
+        description: "Surrogate key derived from team name"
+        tests: [unique, not_null]
+      - name: team_name
+        description: "Normalized team name"
+      - name: played
+        description: "Matches played"
+      - name: won
+        description: "Matches won"
+      - name: drawn
+        description: "Matches drawn"
+      - name: lost
+        description: "Matches lost"
+      - name: points
+        description: "Total league points"
+        tests: [not_null]
+      - name: goals_for
+        description: "Total goals scored"
+      - name: goals_against
+        description: "Total goals conceded"
+      - name: goal_difference
+        description: "GF minus GA"
+
+  - name: stg_top_scorers
+    description: >
+      Top scorers cleaned from raw.top_scorers. One row per player with per-game metrics.
+    columns:
+      - name: player_id
+        description: "Surrogate key derived from player name"
+        tests: [unique, not_null]
+      - name: player_name
+        description: "Player full name"
+      - name: team_name
+        description: "Team name"
+      - name: goals
+        description: "Total goals scored"
+      - name: assists
+        description: "Total assists"
+      - name: goal_contributions
+        description: "Goals + assists combined"
+      - name: matches_played
+        description: "Number of matches appeared in"
+      - name: goals_per_game
+        description: "Average goals per match"
+      - name: assists_per_game
+        description: "Average assists per match"
+
+  - name: stg_live_standings
+    description: >
+      Silver layer: cleaned live EPL standings. Deduplicates raw.live_standings using
+      ROW_NUMBER() OVER (PARTITION BY team_name ORDER BY ingested_at DESC) to keep only
+      the latest snapshot per team. Normalizes team names (strips 'FC' suffix, 'AFC' prefix).
+      Computes derived metrics. Implemented as a view — zero storage cost.
+    columns:
+      - name: position
+        description: "Current league position (1-20)"
+        tests: [not_null]
+      - name: team_name
+        description: "Normalized team name (e.g., 'Arsenal' not 'Arsenal FC')"
+        tests: [unique, not_null]
+      - name: team_name_raw
+        description: "Original team name from the API before normalization"
+      - name: played
+        description: "Matches played this season"
+      - name: won
+        description: "Matches won"
+      - name: drawn
+        description: "Matches drawn"
+      - name: lost
+        description: "Matches lost"
+      - name: goals_for
+        description: "Total goals scored"
+      - name: goals_against
+        description: "Total goals conceded"
+      - name: goal_difference
+        description: "GF minus GA"
+      - name: points
+        description: "Total league points"
+        tests: [not_null]
+      - name: form
+        description: "Recent form from API (e.g., 'W,W,D,L,W')"
+      - name: season
+        description: "Season identifier"
+      - name: win_rate
+        description: "Derived: won / played as decimal"
+      - name: points_pct
+        description: "Derived: points / (played * 3) — percentage of max possible points"
+      - name: goals_per_game
+        description: "Derived: goals_for / played"
+      - name: goals_conceded_per_game
+        description: "Derived: goals_against / played"
+      - name: ingested_at
+        description: "Timestamp of the latest ingest used"
+
+  - name: stg_live_matches
+    description: >
+      Silver layer: cleaned live EPL matches. Deduplicates raw.live_matches using
+      ROW_NUMBER() OVER (PARTITION BY match_id ORDER BY ingested_at DESC). Normalizes
+      team names and match statuses. Implemented as a view for zero-cost freshness.
+    columns:
+      - name: match_id
+        description: "Unique match identifier from football-data.org"
+        tests: [not_null]
+      - name: utc_date
+        description: "Scheduled kickoff in UTC"
+      - name: status
+        description: "Normalized status: SCHEDULED, IN_PLAY, HALFTIME, FINISHED, POSTPONED"
+      - name: minute
+        description: "Current match minute (null if not in play)"
+      - name: home_team
+        description: "Normalized home team name"
+      - name: away_team
+        description: "Normalized away team name"
+      - name: home_team_raw
+        description: "Original home team name from API"
+      - name: away_team_raw
+        description: "Original away team name from API"
+      - name: home_score
+        description: "Home goals (null if not started)"
+      - name: away_score
+        description: "Away goals (null if not started)"
+      - name: winner
+        description: "Winning team name, or null"
+      - name: competition
+        description: "Competition name"
+      - name: season
+        description: "Season identifier"
+      - name: matchday_approx
+        description: "Approximate matchday extracted from raw_json"
+      - name: ingested_at
+        description: "Timestamp of the latest ingest used"
+
+  - name: stg_stadium_weather
+    description: >
+      Silver layer: latest weather per stadium. Deduplicates by team_name, keeps most recent.
+    columns:
+      - name: team_name
+        description: "Team name"
+        tests: [unique, not_null]
+      - name: stadium_name
+        description: "Stadium venue name"
+      - name: temperature_c
+        description: "Temperature in Celsius"
+      - name: humidity_pct
+        description: "Relative humidity %"
+      - name: wind_speed_kmh
+        description: "Wind speed km/h"
+      - name: precipitation_mm
+        description: "Precipitation mm"
+      - name: weather_code
+        description: "WMO weather code"
+      - name: weather_description
+        description: "Human-readable weather"
+      - name: fetched_at
+        description: "When weather was fetched"

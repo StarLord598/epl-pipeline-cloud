@@ -1,0 +1,72 @@
+version: '3.8'
+
+# ─────────────────────────────────────────────────────────────────────
+# EPL Analytics Pipeline — Docker Compose
+# Services: Airflow (scheduler + webserver) + Postgres (metadata DB)
+# Usage: docker compose up -d → http://localhost:8080 (admin/admin)
+# ─────────────────────────────────────────────────────────────────────
+
+x-airflow-common: &airflow-common
+  build:
+    context: .
+    dockerfile: infra/docker/Dockerfile.airflow
+  env_file: .env
+  volumes:
+    - ./airflow/dags:/opt/airflow/dags:ro
+    - ./airflow/plugins:/opt/airflow/plugins:ro
+    - ./airflow/include:/opt/airflow/include:ro
+    - ./airflow/tests:/opt/airflow/tests:ro
+    - ./dbt:/opt/airflow/dbt
+    - ./scripts:/opt/airflow/scripts:ro
+    - ./data:/opt/airflow/data
+    - ./dashboard:/opt/airflow/dashboard:ro
+    - ./keys:/opt/airflow/keys:ro
+  depends_on:
+    postgres:
+      condition: service_healthy
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-airflow}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-airflow}
+      POSTGRES_DB: ${POSTGRES_DB:-airflow}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow"]
+      interval: 5s
+      retries: 5
+
+  airflow-init:
+    <<: *airflow-common
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        airflow db migrate &&
+        airflow users create --username admin --password "$${AIRFLOW_ADMIN_PASSWORD:-admin}" --firstname Admin --lastname User --role Admin --email admin@example.com || true
+    restart: "no"
+
+  airflow-webserver:
+    <<: *airflow-common
+    command: airflow webserver --port 8080
+    ports:
+      - "127.0.0.1:8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: always
+
+  airflow-scheduler:
+    <<: *airflow-common
+    command: airflow scheduler
+    restart: always
+
+volumes:
+  postgres_data:

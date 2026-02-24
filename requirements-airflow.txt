@@ -1,0 +1,10 @@
+# dbt (DuckDB local warehouse)
+dbt-core==1.8.4
+dbt-duckdb==1.8.2
+
+# Local warehouse
+duckdb==1.1.3
+
+requests==2.32.3
+pandas>=1.5,<2.2
+statsbombpy>=1.13.0

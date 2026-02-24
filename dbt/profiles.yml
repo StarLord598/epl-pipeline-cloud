@@ -1,0 +1,8 @@
+epl_pipeline:
+  target: local
+
+  outputs:
+    local:
+      type: duckdb
+      path: "{{ env_var('EPL_DB_PATH', '../data/epl_pipeline.duckdb') }}"
+      threads: 4

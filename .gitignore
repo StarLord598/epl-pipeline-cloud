@@ -1,0 +1,41 @@
+# Environment
+.env
+keys/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+venv313/
+
+# Data (large files)
+data/epl_pipeline.duckdb
+data/json/match_events/
+
+# Airflow
+airflow/logs/
+airflow/airflow.cfg
+
+# dbt
+dbt/target/
+dbt/dbt_packages/
+dbt/logs/
+
+# Terraform
+infra/terraform/.terraform/
+infra/terraform/*.tfstate*
+infra/terraform/.terraform.lock.hcl
+
+# Node
+dashboard/node_modules/
+dashboard/.next/
+
+# OS
+.DS_Store
+data/quality_report.json
+_cloud_archive/
+
+# dbt docs (generated, regenerate with make docs)
+dashboard/public/lineage/
+dashboard/public/data/stream_events.json

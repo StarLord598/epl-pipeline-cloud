@@ -1,0 +1,479 @@
+version: 2
+
+models:
+  - name: mart_league_table
+    description: >
+      Historical EPL league table (2023-24) with calculated performance metrics.
+      Sourced from stg_standings. Includes win rate, goals per game, and form analysis.
+      Used by the main Table page as fallback when live data is unavailable.
+    columns:
+      - name: team_id
+        description: "Surrogate key derived from team name"
+        tests: [unique, not_null]
+      - name: team
+        description: "Team name"
+      - name: position
+        description: "Final league position (1-20)"
+        tests: [not_null]
+      - name: points
+        description: "Total league points"
+        tests: [not_null]
+      - name: played
+        description: "Matches played"
+      - name: won
+        description: "Matches won"
+      - name: drawn
+        description: "Matches drawn"
+      - name: lost
+        description: "Matches lost"
+      - name: gf
+        description: "Goals for (scored)"
+      - name: ga
+        description: "Goals against (conceded)"
+      - name: gd
+        description: "Goal difference"
+      - name: win_rate
+        description: "Win percentage as decimal"
+      - name: goals_per_game
+        description: "Average goals scored per match"
+
+  - name: mart_top_scorers
+    description: >
+      EPL top scorers with per-game stats and ranking. Sourced from stg_top_scorers.
+      Adds rank, goals_per_game, and penalty percentage calculations.
+    columns:
+      - name: player_id
+        description: "Surrogate key from player name"
+        tests: [unique, not_null]
+      - name: rank
+        description: "Scoring rank (1 = top scorer)"
+        tests: [not_null]
+      - name: player
+        description: "Player full name"
+      - name: team
+        description: "Team name"
+      - name: goals
+        description: "Total goals"
+      - name: assists
+        description: "Total assists"
+      - name: goals_per_game
+        description: "Average goals per match played"
+      - name: penalty_pct
+        description: "Percentage of goals from penalties"
+
+  - name: mart_recent_results
+    description: >
+      EPL match results with derived home/away result indicators.
+      Incremental model — appends new results, never rebuilds existing rows.
+      Used by the Results page.
+    columns:
+      - name: match_id
+        description: "Unique match identifier"
+        tests: [unique, not_null]
+      - name: home_team
+        description: "Home team name"
+      - name: away_team
+        description: "Away team name"
+      - name: home_score
+        description: "Home goals"
+      - name: away_score
+        description: "Away goals"
+      - name: match_date
+        description: "Date the match was played"
+      - name: result
+        description: "Derived: H (home win), A (away win), D (draw)"
+
+  - name: mart_live_league_table
+    description: >
+      Live EPL league table (Gold) for the 2025-26 season. Sourced from stg_live_standings.
+      Adds qualification zone classification: positions 1-4 = Champions League,
+      5 = Europa League, 6 = Conference League, 18-20 = Relegation.
+      Full-refresh table rebuilt every dbt run. Primary data source for the dashboard homepage.
+    columns:
+      - name: team_name
+        description: "Normalized team name (e.g., 'Arsenal')"
+        tests: [unique, not_null]
+      - name: position
+        description: "Current league position (1-20)"
+        tests: [not_null]
+      - name: points
+        description: "Total league points"
+        tests: [not_null]
+      - name: played
+        description: "Matches played"
+      - name: won
+        description: "Matches won"
+      - name: drawn
+        description: "Matches drawn"
+      - name: lost
+        description: "Matches lost"
+      - name: goals_for
+        description: "Total goals scored"
+      - name: goals_against
+        description: "Total goals conceded"
+      - name: goal_difference
+        description: "GF minus GA"
+      - name: win_rate
+        description: "Won / played as decimal"
+      - name: goals_per_game
+        description: "GF / played"
+      - name: goals_conceded_per_game
+        description: "GA / played"
+      - name: qualification_zone
+        description: "Champions League (1-4), Europa League (5), Conference League (6), Relegation (18-20), or null"
+
+  - name: mart_live_matches
+    description: >
+      Live EPL matches (Gold) for the 2025-26 season. One row per match (380 total).
+      Sourced from stg_live_matches. Includes all statuses: FINISHED, SCHEDULED,
+      IN_PLAY, POSTPONED. Full-refresh table. Consumed by the Live page and API endpoints.
+    columns:
+      - name: match_id
+        description: "Unique match identifier from football-data.org"
+        tests: [not_null]
+      - name: home_team
+        description: "Normalized home team name"
+      - name: away_team
+        description: "Normalized away team name"
+      - name: home_score
+        description: "Home goals (null if not started)"
+      - name: away_score
+        description: "Away goals (null if not started)"
+      - name: status
+        description: "Match status: SCHEDULED, IN_PLAY, HALFTIME, FINISHED, POSTPONED"
+      - name: utc_date
+        description: "Scheduled kickoff time in UTC"
+      - name: matchday
+        description: "Gameweek number (1-38)"
+      - name: winner
+        description: "Winning team or null"
+
+  - name: mart_scd2_standings
+    description: >
+      SCD Type 2 — Pure implementation of league position history tracking.
+      Only creates a new version when a team's position CHANGES. Consecutive matchdays
+      at the same position are collapsed into a single row with valid_from/valid_to boundaries.
+      Enables point-in-time queries: "What position was Arsenal in on GW12?"
+      Enables duration queries: "How long did Arsenal hold 1st place?"
+      Full-refresh table. ~330 rows (vs 760 if snapshot-per-matchday = 57% less data).
+    columns:
+      - name: team_name
+        description: "Normalized team name"
+      - name: position
+        description: "Team's league position during this version"
+      - name: valid_from_matchday
+        description: "First matchday this position was held (version start)"
+      - name: valid_to_matchday
+        description: "Last matchday this position was held (version end)"
+      - name: valid_from_date
+        description: "Calendar date of the valid_from matchday"
+      - name: valid_to_date
+        description: "Calendar date of the valid_to matchday"
+      - name: points
+        description: "Cumulative points at end of this version period"
+      - name: played
+        description: "Cumulative matches played at end of this version period"
+      - name: goals_for
+        description: "Cumulative goals scored at end of this version period"
+      - name: goals_against
+        description: "Cumulative goals conceded at end of this version period"
+      - name: goal_difference
+        description: "Cumulative GF minus GA at end of this version period"
+      - name: matchdays_held
+        description: "Number of consecutive matchdays this position was held"
+      - name: prev_position
+        description: "Position in the previous version (null for first version)"
+      - name: movement
+        description: "Direction of change from previous version: UP, DOWN, SAME, or NEW"
+      - name: is_current
+        description: "Boolean: true if this is the team's current active version"
+
+  - name: mart_points_race
+    description: >
+      Cumulative points race — shows each team's point total at every matchday.
+      Designed for a line chart visualization (like a stock price chart).
+      One row per team per matchday. Sourced from raw.live_matches match results.
+    columns:
+      - name: team_name
+        description: "Normalized team name"
+      - name: matchday
+        description: "Gameweek number"
+      - name: matchday_points
+        description: "Points earned in this specific matchday (0, 1, or 3)"
+      - name: cumulative_points
+        description: "Running total of points from GW1 through this matchday"
+
+  - name: mart_rolling_form
+    description: >
+      Rolling 5-game form analysis with momentum classification. Computes rolling
+      average PPG, goals scored/conceded over the last 5 matches. Classifies current
+      momentum as HOT (≥2.2 PPG), STEADY (≥1.5), COOLING (≥0.8), or COLD (<0.8).
+      One row per team per matchday played. The recency_rank=1 row is the current form.
+    columns:
+      - name: team_name
+        description: "Normalized team name"
+      - name: matchday
+        description: "Gameweek number"
+      - name: result
+        description: "Match result: W (win), D (draw), L (loss)"
+      - name: pts
+        description: "Points earned in this match (3, 1, or 0)"
+      - name: gf
+        description: "Goals scored in this match"
+      - name: ga
+        description: "Goals conceded in this match"
+      - name: rolling_5_ppg
+        description: "Average points per game over the last 5 matches"
+      - name: rolling_5_goals_scored
+        description: "Average goals scored per game over the last 5 matches"
+      - name: rolling_5_goals_conceded
+        description: "Average goals conceded per game over the last 5 matches"
+      - name: last_5_form
+        description: "String of last 5 results (e.g., 'WWDWL')"
+      - name: current_momentum
+        description: "Momentum tier: HOT, STEADY, COOLING, or COLD (only set for recency_rank=1)"
+      - name: recency_rank
+        description: "1 = most recent match, 2 = second most recent, etc."
+
+  - name: dim_teams
+    description: >
+      Kimball-style team dimension. Combines current standings (mart_live_league_table)
+      with season-long form analysis (mart_rolling_form). Classifies teams into tiers:
+      TITLE CONTENDER (1-4), EUROPEAN HOPEFUL (5-7), MID-TABLE (8-14),
+      RELEGATION BATTLE (15-17), RELEGATION ZONE (18-20). One row per team.
+    columns:
+      - name: team_name
+        description: "Normalized team name — the natural key"
+      - name: position
+        description: "Current league position"
+      - name: points
+        description: "Total league points"
+      - name: played
+        description: "Matches played"
+      - name: won
+        description: "Matches won"
+      - name: drawn
+        description: "Matches drawn"
+      - name: lost
+        description: "Matches lost"
+      - name: goals_for
+        description: "Total goals scored"
+      - name: goals_against
+        description: "Total goals conceded"
+      - name: goal_difference
+        description: "GF minus GA"
+      - name: qualification_zone
+        description: "Champions League, Europa League, Conference League, Relegation, or null"
+      - name: win_rate
+        description: "Season win percentage as decimal"
+      - name: goals_per_game
+        description: "Average goals scored per match"
+      - name: goals_conceded_per_game
+        description: "Average goals conceded per match"
+      - name: current_form
+        description: "Last 5 match results (e.g., 'WWDWL')"
+      - name: tier
+        description: "Classification: TITLE CONTENDER, EUROPEAN HOPEFUL, MID-TABLE, RELEGATION BATTLE, RELEGATION ZONE"
+
+  - name: dim_matchdays
+    description: >
+      Matchday schedule dimension. One row per gameweek (38 total). Tracks match
+      counts (completed/scheduled/live), date ranges, and status. The is_active_window
+      flag enables matchday-aware scheduling — the live_poll_15m DAG uses this to skip
+      polling on non-matchday periods.
+    columns:
+      - name: matchday
+        description: "Gameweek number (1-38)"
+      - name: first_kickoff
+        description: "Earliest kickoff time in this matchday"
+      - name: last_kickoff
+        description: "Latest kickoff time in this matchday"
+      - name: matchday_start_date
+        description: "Date of the first match"
+      - name: matchday_end_date
+        description: "Date of the last match"
+      - name: total_matches
+        description: "Number of matches in this matchday (usually 10)"
+      - name: completed
+        description: "Number of finished matches"
+      - name: scheduled
+        description: "Number of upcoming/scheduled matches"
+      - name: live_now
+        description: "Number of matches currently in play"
+      - name: matchday_status
+        description: "LIVE (matches in play), COMPLETED, IN_PROGRESS (partially complete), or UPCOMING"
+      - name: is_active_window
+        description: "Boolean: true if today is within ±1 day of this matchday's date range. Used for DAG scheduling."
+
+  - name: mart_match_events
+    description: >
+      Match events enriched with match context (teams, score, date). Joins raw.events
+      with raw.matches to provide full context per event. Used for team/player detail pages.
+    columns:
+      - name: event_id
+        description: "Unique event identifier from StatsBomb"
+      - name: match_id
+        description: "Foreign key to raw.matches"
+      - name: period
+        description: "Match period (1 = first half, 2 = second half)"
+      - name: minute
+        description: "Minute the event occurred"
+      - name: second
+        description: "Second within the minute"
+      - name: event_type
+        description: "Event type (Pass, Shot, Tackle, Goal, etc.)"
+      - name: player_name
+        description: "Player who performed the event"
+      - name: team_name
+        description: "Team that performed the event"
+      - name: position_name
+        description: "Player's position at the time"
+      - name: location_x
+        description: "X coordinate on the pitch (0-120 yards)"
+      - name: location_y
+        description: "Y coordinate on the pitch (0-80 yards)"
+      - name: sub_type
+        description: "Event sub-type for further classification"
+      - name: outcome
+        description: "Outcome of the event (Complete, Saved, Goal, etc.)"
+      - name: home_team_name
+        description: "Home team in the match"
+      - name: away_team_name
+        description: "Away team in the match"
+      - name: home_score
+        description: "Final home score"
+      - name: away_score
+        description: "Final away score"
+      - name: match_date
+        description: "Date the match was played"
+
+  - name: mart_team_stats
+    description: >
+      Aggregated team statistics combining standings with match-level performance.
+      Used by the Stats page for team comparison radar charts.
+    columns:
+      - name: position
+        description: "League position"
+      - name: team_id
+        description: "Surrogate team key"
+      - name: team_name
+        description: "Team name"
+      - name: played
+        description: "Matches played"
+      - name: won
+        description: "Matches won"
+      - name: drawn
+        description: "Matches drawn"
+      - name: lost
+        description: "Matches lost"
+      - name: points
+        description: "Total league points"
+      - name: goals_for
+        description: "Total goals scored"
+      - name: goals_against
+        description: "Total goals conceded"
+      - name: goal_difference
+        description: "GF minus GA"
+      - name: win_rate
+        description: "Win percentage as decimal"
+      - name: points_pct
+        description: "Points as percentage of maximum possible"
+      - name: goals_per_game
+        description: "Average goals scored per match"
+      - name: goals_conceded_per_game
+        description: "Average goals conceded per match"
+      - name: total_wins
+        description: "Alias for won (backward compatibility)"
+      - name: total_matches
+        description: "Alias for played (backward compatibility)"
+
+  - name: mart_team_form
+    description: >
+      Recent form string per team — last N match results as a comma-separated string.
+      Used by team detail pages to show recent form badges.
+    columns:
+      - name: team_id
+        description: "Surrogate team key"
+      - name: team_name
+        description: "Team name"
+      - name: form_string
+        description: "Recent results as string (e.g., 'W,W,D,L,W')"
+      - name: recent_matches
+        description: "Number of recent matches included in the form string"
+
+  - name: gold_live_match_monitor
+    description: >
+      Operational monitoring table — tracks live match ingestion freshness.
+      Shows active match count, last ingest time, and freshness status.
+      Used by the health page and alerting checks.
+    columns:
+      - name: active_match_count
+        description: "Number of matches with recent ingest activity"
+      - name: last_ingested_at
+        description: "Timestamp of the most recent ingest across all matches"
+      - name: freshness_minutes
+        description: "Minutes since last ingest"
+      - name: freshness_status
+        description: "OK, STALE, or CRITICAL based on freshness thresholds"
+      - name: computed_at
+        description: "Timestamp when this monitoring row was computed"
+
+  - name: mart_scd1_matches
+    description: >
+      SCD Type 1 — latest state per match with correction tracking.
+      Tracks first_seen_at, last_updated_at, update_count, and is_correction flag.
+    columns:
+      - name: match_id
+        description: "Unique match identifier"
+        tests: [unique, not_null]
+      - name: utc_date
+        description: "Scheduled kickoff UTC"
+      - name: status
+        description: "Current match status"
+      - name: home_team
+        description: "Home team name"
+      - name: away_team
+        description: "Away team name"
+      - name: home_score
+        description: "Home goals"
+      - name: away_score
+        description: "Away goals"
+      - name: first_seen_at
+        description: "When this match was first ingested"
+        tests: [not_null]
+      - name: last_updated_at
+        description: "When this match was last updated"
+        tests: [not_null]
+      - name: update_count
+        description: "Number of times this match record was ingested"
+      - name: is_correction
+        description: "True if match data was updated after initial insert"
+
+  - name: mart_stadium_weather
+    description: >
+      Stadium weather enriched with team dimension data. Includes pitch condition
+      classification and temperature comfort levels.
+    columns:
+      - name: team_name
+        description: "Team name"
+        tests: [unique, not_null]
+      - name: stadium_name
+        description: "Stadium venue"
+      - name: temperature_c
+        description: "Temperature in Celsius"
+      - name: humidity_pct
+        description: "Relative humidity %"
+      - name: wind_speed_kmh
+        description: "Wind speed km/h"
+      - name: precipitation_mm
+        description: "Precipitation mm"
+      - name: weather_description
+        description: "Human-readable weather"
+      - name: pitch_condition
+        description: "Derived: Excellent/Good/Moderate/Poor/Dangerous"
+      - name: temperature_class
+        description: "Derived: Freezing/Cold/Cool/Comfortable/Warm/Hot"
+      - name: team_tier
+        description: "From dim_teams: Title Contender, European, etc."
+      - name: fetched_at
+        description: "When weather was fetched"
