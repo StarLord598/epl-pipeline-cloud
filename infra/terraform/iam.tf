@@ -153,6 +153,71 @@ resource "aws_iam_role_policy" "github_actions_deploy" {
         Resource = [
           "${aws_s3_bucket.lambda_deploy.arn}/*"
         ]
+      },
+      {
+        Sid    = "TerraformStateAccess"
+        Effect = "Allow"
+        Action = [
+          "s3:ListBucket",
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:DeleteObject",
+        ]
+        Resource = [
+          "arn:aws:s3:::${var.project_name}-terraform-state",
+          "arn:aws:s3:::${var.project_name}-terraform-state/*"
+        ]
+      },
+      {
+        Sid    = "TerraformLockAccess"
+        Effect = "Allow"
+        Action = [
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:DeleteItem",
+        ]
+        Resource = "arn:aws:dynamodb:${var.aws_region}:${data.aws_caller_identity.current.account_id}:table/${var.project_name}-terraform-locks"
+      },
+      {
+        Sid    = "TerraformPlanPermissions"
+        Effect = "Allow"
+        Action = [
+          "s3:GetBucketVersioning",
+          "s3:GetBucketPolicy",
+          "s3:GetBucketAcl",
+          "s3:GetBucketCORS",
+          "s3:GetBucketLocation",
+          "s3:GetBucketTagging",
+          "s3:GetBucketPublicAccessBlock",
+          "s3:GetEncryptionConfiguration",
+          "s3:GetLifecycleConfiguration",
+          "s3:GetBucketLogging",
+          "s3:ListBucket",
+          "lambda:GetFunction",
+          "lambda:GetFunctionConfiguration",
+          "lambda:ListTags",
+          "lambda:GetLayerVersion",
+          "lambda:GetPolicy",
+          "iam:GetRole",
+          "iam:GetRolePolicy",
+          "iam:ListRolePolicies",
+          "iam:ListAttachedRolePolicies",
+          "iam:GetOpenIDConnectProvider",
+          "glue:GetDatabase",
+          "glue:GetTable",
+          "glue:GetTables",
+          "athena:GetWorkGroup",
+          "athena:GetNamedQuery",
+          "events:DescribeRule",
+          "events:ListTargetsByRule",
+          "events:ListTagsForResource",
+          "secretsmanager:DescribeSecret",
+          "secretsmanager:GetSecretValue",
+          "logs:DescribeLogGroups",
+          "logs:ListTagsForResource",
+          "sts:GetCallerIdentity",
+        ]
+        Resource = "*"
       }
     ]
   })
