@@ -1,6 +1,7 @@
 # EPL Analytics Pipeline — API Reference
 
-Base URL: `http://localhost:3000/api`
+Base URL (local): `http://localhost:3000/api`
+Base URL (live): `https://andres-alvarez-de-cloud-epl-analytics.vercel.app/api`
 
 All endpoints return JSON. Responses include `Cache-Control` headers for client-side caching.
 
@@ -249,11 +250,35 @@ Returns full match results.
 
 ---
 
+## Match Results
+
+### `GET /api/results`
+
+Returns match results, browseable by gameweek.
+
+---
+
 ## Top Scorers
 
 ### `GET /api/scorers`
 
 Returns top scorers with goals, assists, and per-game metrics.
+
+---
+
+## Pipeline Health
+
+### `GET /api/health`
+
+Returns pipeline health status.
+
+**Response:**
+```json
+{
+  "status": "ok",
+  "timestamp": "2026-02-25T15:00:00Z"
+}
+```
 
 ---
 

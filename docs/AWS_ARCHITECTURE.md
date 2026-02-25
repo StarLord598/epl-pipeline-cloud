@@ -53,10 +53,8 @@ graph TB
         DBT[dbt cloud target<br/>dbt-athena-community]
     end
 
-    subgraph "Dashboard — ECS Fargate"
-        ECS[ECS Cluster<br/>epl-pipeline]
-        TASK[Fargate Task<br/>0.25 vCPU, 512 MB]
-        ECR[ECR Repository<br/>epl-pipeline-dashboard]
+    subgraph "Dashboard — Vercel"
+        VERCEL[Vercel Free Tier<br/>Auto-deploy from main]
         S3_STATIC[S3 Static Fallback<br/>HTML Dashboard]
     end
 
@@ -113,16 +111,14 @@ graph TB
     SFN --> CW
     ALARMS --> SNS_A
 
-    ECR --> TASK
-    TASK --> ECS
-    ECS -->|reads| RAW
+    VERCEL -->|reads| RAW
 
     GHA --> TF
     GHA -->|deploy| L1
     GHA -->|deploy| L2
     GHA -->|deploy| L3
 
-    style ECS fill:#8e44ad,color:#fff
+    style VERCEL fill:#8e44ad,color:#fff
     style RAW fill:#ff6b6b,color:#fff
     style STG fill:#ffd93d,color:#333
     style MART fill:#6bcb77,color:#fff
@@ -208,9 +204,7 @@ CloudFront provides HTTPS, caching, and is custom-domain-ready (add ACM cert).
 | Lambda Exec Role | IAM | Least-privilege execution |
 | SFN Exec Role | IAM | Step Functions permissions |
 | EventBridge SFN Role | IAM | EventBridge→SFN trigger |
-| ECS Cluster | ECS Fargate | Dashboard hosting (epl-pipeline) |
-| Task Definition | ECS Fargate | Next.js container (0.25 vCPU, 512 MB) |
-| ECR Repository | ECR | Docker image storage (epl-pipeline-dashboard) |
+| Dashboard | Vercel (free tier) | Next.js auto-deploy from `main` — [live URL](https://andres-alvarez-de-cloud-epl-analytics.vercel.app) |
 | Static Dashboard | S3 | HTML fallback dashboard |
 | GitHub OIDC Role | IAM | CI/CD without static keys |
 
@@ -225,7 +219,7 @@ The cloud layer is **additive** — the existing local pipeline continues to wor
 | Ingestion | Python scripts | Lambda functions |
 | Query Engine | DuckDB | Athena (serverless SQL on S3) |
 | dbt Target | `local` (DuckDB) | `cloud` (Athena) |
-| Dashboard | Next.js (JSON files) | Next.js on ECS Fargate (Docker) |
+| Dashboard | Next.js (JSON files) | [Vercel](https://andres-alvarez-de-cloud-epl-analytics.vercel.app) (auto-deploy from `main`) |
 | Public API | Next.js API Routes | API Gateway + CloudFront |
 | Monitoring | — | CloudWatch Dashboard + Alarms |
 
@@ -243,9 +237,8 @@ The cloud layer is **additive** — the existing local pipeline continues to wor
 | CloudWatch | ~$0.00 (free tier: 10 alarms, 3 dashboards) |
 | SNS | ~$0.00 (free tier: 1M publishes) |
 | EventBridge | Free tier |
-| ECS Fargate | ~$3.00 (0.25 vCPU, 512 MB; stop when not demoing) |
-| ECR | ~$0.00 (< 500 MB free) |
-| **Total** | **~$5/mo** (< $3/mo if ECS stopped when idle) |
+| Vercel (Dashboard) | $0 (free hobby tier) |
+| **Total** | **~$2/mo** |
 
 ## Setup
 
