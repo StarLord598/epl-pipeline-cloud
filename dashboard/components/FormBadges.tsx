@@ -6,7 +6,7 @@ interface FormBadgesProps {
 export default function FormBadges({ form, limit = 5 }: FormBadgesProps) {
   if (!form) return <span className="text-gray-600 text-xs">--</span>;
 
-  const chars = form.split("").slice(0, limit);
+  const chars = form.includes(",") ? form.split(",").slice(0, limit) : form.split("").slice(0, limit);
 
   return (
     <div className="flex gap-0.5">
