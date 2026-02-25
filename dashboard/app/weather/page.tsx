@@ -3,11 +3,33 @@
 import { useEffect, useState } from "react";
 import DataSourceBadge from "@/components/DataSourceBadge";
 
+/* ── static stadium data (coords + names) ── */
+const STADIUMS = [
+  { team_name: "Arsenal", stadium_name: "Emirates Stadium", lat: 51.5549, lon: -0.1084 },
+  { team_name: "Aston Villa", stadium_name: "Villa Park", lat: 52.5092, lon: -1.8847 },
+  { team_name: "Bournemouth", stadium_name: "Vitality Stadium", lat: 50.7352, lon: -1.8384 },
+  { team_name: "Brentford", stadium_name: "Gtech Community Stadium", lat: 51.4907, lon: -0.2886 },
+  { team_name: "Brighton", stadium_name: "Amex Stadium", lat: 50.8616, lon: -0.0834 },
+  { team_name: "Chelsea", stadium_name: "Stamford Bridge", lat: 51.4817, lon: -0.191 },
+  { team_name: "Crystal Palace", stadium_name: "Selhurst Park", lat: 51.3983, lon: -0.0856 },
+  { team_name: "Everton", stadium_name: "Goodison Park", lat: 53.4388, lon: -2.9663 },
+  { team_name: "Fulham", stadium_name: "Craven Cottage", lat: 51.475, lon: -0.2217 },
+  { team_name: "Ipswich Town", stadium_name: "Portman Road", lat: 52.0545, lon: 1.1447 },
+  { team_name: "Leicester City", stadium_name: "King Power Stadium", lat: 52.6203, lon: -1.1421 },
+  { team_name: "Liverpool", stadium_name: "Anfield", lat: 53.4308, lon: -2.9609 },
+  { team_name: "Manchester City", stadium_name: "Etihad Stadium", lat: 53.4831, lon: -2.2004 },
+  { team_name: "Manchester United", stadium_name: "Old Trafford", lat: 53.4631, lon: -2.2913 },
+  { team_name: "Newcastle United", stadium_name: "St James' Park", lat: 54.9756, lon: -1.6217 },
+  { team_name: "Nottingham Forest", stadium_name: "City Ground", lat: 52.94, lon: -1.1325 },
+  { team_name: "Southampton", stadium_name: "St Mary's Stadium", lat: 50.9058, lon: -1.3911 },
+  { team_name: "Tottenham", stadium_name: "Tottenham Hotspur Stadium", lat: 51.6042, lon: -0.0662 },
+  { team_name: "West Ham", stadium_name: "London Stadium", lat: 51.5387, lon: -0.0166 },
+  { team_name: "Wolverhampton", stadium_name: "Molineux Stadium", lat: 52.5903, lon: -2.1306 },
+];
+
 interface StadiumWeather {
   team_name: string;
   stadium_name: string;
-  latitude: number;
-  longitude: number;
   temperature_c: number | null;
   humidity_pct: number | null;
   wind_speed_kmh: number | null;
@@ -16,9 +38,47 @@ interface StadiumWeather {
   weather_description: string | null;
   pitch_condition: string | null;
   temperature_class: string | null;
-  team_tier: string | null;
-  current_position: number | null;
   fetched_at: string | null;
+}
+
+/* ── WMO weather code → description ── */
+function weatherDescription(code: number): string {
+  if (code === 0) return "Clear sky";
+  if (code <= 3) return "Partly cloudy";
+  if (code <= 48) return "Fog";
+  if (code <= 55) return "Drizzle";
+  if (code <= 57) return "Freezing drizzle";
+  if (code <= 65) return "Rain";
+  if (code <= 67) return "Freezing rain";
+  if (code <= 75) return "Snow";
+  if (code <= 77) return "Snow grains";
+  if (code <= 82) return "Rain showers";
+  if (code <= 86) return "Snow showers";
+  if (code >= 95) return "Thunderstorm";
+  return "Unknown";
+}
+
+/* ── derive pitch condition from weather ── */
+function derivePitchCondition(code: number, precip: number, temp: number): string {
+  if (code >= 95) return "Dangerous (Storm)";
+  if (code >= 71 && code <= 86) return "Poor (Snow)";
+  if (code >= 61 && code <= 67) return "Poor (Rain)";
+  if (code >= 80 && code <= 82) return "Poor (Showers)";
+  if (code >= 45 && code <= 48) return "Poor (Fog)";
+  if (code >= 51 && code <= 57) return "Moderate (Drizzle)";
+  if (precip > 0.5) return "Moderate (Drizzle)";
+  if (temp < 2) return "Moderate (Drizzle)";
+  if (code <= 1) return "Excellent";
+  return "Good";
+}
+
+function deriveTemperatureClass(temp: number): string {
+  if (temp < 0) return "Freezing";
+  if (temp < 5) return "Cold";
+  if (temp < 12) return "Cool";
+  if (temp < 20) return "Mild";
+  if (temp < 28) return "Warm";
+  return "Hot";
 }
 
 function weatherEmoji(code: number | null): string {
@@ -51,12 +111,59 @@ function pitchColor(condition: string | null): string {
 export default function WeatherPage() {
   const [data, setData] = useState<StadiumWeather[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/data/weather.json")
-      .then((r) => r.json())
-      .then((d) => { setData(d); setLoading(false); })
-      .catch(() => setLoading(false));
+    async function fetchLiveWeather() {
+      try {
+        // Build comma-separated lat/lon for Open-Meteo bulk request
+        const lats = STADIUMS.map(s => s.lat).join(",");
+        const lons = STADIUMS.map(s => s.lon).join(",");
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lons}&current=temperature_2m,relative_humidity_2m,precipitation,weather_code,wind_speed_10m&timezone=Europe/London`;
+
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`Open-Meteo API error: ${res.status}`);
+        const json = await res.json();
+
+        // Open-Meteo returns an array when multiple coordinates are passed
+        const results: StadiumWeather[] = STADIUMS.map((stadium, i) => {
+          const current = Array.isArray(json) ? json[i].current : json.current;
+          const temp = current.temperature_2m;
+          const code = current.weather_code;
+          const precip = current.precipitation;
+          return {
+            team_name: stadium.team_name,
+            stadium_name: stadium.stadium_name,
+            temperature_c: temp,
+            humidity_pct: current.relative_humidity_2m,
+            wind_speed_kmh: current.wind_speed_10m,
+            precipitation_mm: precip,
+            weather_code: code,
+            weather_description: weatherDescription(code),
+            pitch_condition: derivePitchCondition(code, precip, temp),
+            temperature_class: deriveTemperatureClass(temp),
+            fetched_at: current.time,
+          };
+        });
+
+        setData(results);
+      } catch (err) {
+        console.error("Weather fetch failed:", err);
+        setError("Failed to fetch live weather. Trying cached data...");
+        // Fall back to static file
+        try {
+          const res = await fetch("/data/weather.json");
+          const d = await res.json();
+          setData(d);
+        } catch {
+          setError("No weather data available.");
+        }
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchLiveWeather();
   }, []);
 
   if (loading) {
@@ -64,7 +171,7 @@ export default function WeatherPage() {
       <div className="flex items-center justify-center py-20">
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 rounded-full border-2 border-[#00ff85]/30 border-t-[#00ff85] animate-spin" />
-          <span className="text-gray-500 text-sm">Loading weather data...</span>
+          <span className="text-gray-500 text-sm">Fetching live weather data...</span>
         </div>
       </div>
     );
@@ -73,7 +180,7 @@ export default function WeatherPage() {
   if (data.length === 0) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="text-gray-400 text-lg">No weather data available. Run the weather ingestion pipeline first.</div>
+        <div className="text-gray-400 text-lg">{error || "No weather data available."}</div>
       </div>
     );
   }
@@ -88,18 +195,19 @@ export default function WeatherPage() {
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold text-white">Stadium Weather</h1>
               <p className="text-gray-400 text-sm mt-0.5">
-                Real-time weather at all 20 EPL stadiums via Open-Meteo API
+                Live weather at all 20 EPL stadiums via Open-Meteo API
               </p>
             </div>
           </div>
           <DataSourceBadge
-            pattern="Near Real-Time Polling"
-            source="Gold: mart_stadium_weather → stg_stadium_weather → raw.stadium_weather"
-            explanation="Micro-batch ingestion — Open-Meteo API polled every 5 min via Airflow DAG for all 20 stadiums. Bronze stores full history (append-only), Silver deduplicates to latest per stadium, Gold enriches with pitch conditions + team dimension. Not true streaming (no persistent connection) — this is scheduled polling, distinct from the SSE pattern on the Stream page."
+            pattern="Live API Fetch"
+            source="Open-Meteo API → Client-side render"
+            explanation="Weather is fetched live from Open-Meteo's free API on each page load — no storage needed. Falls back to cached JSON if the API is unavailable."
           />
+          {error && <p className="text-yellow-400 text-sm mt-1">⚠️ {error}</p>}
           {data[0]?.fetched_at && (
             <p className="text-gray-500 text-sm mt-1">
-              Last updated: {new Date(data[0].fetched_at).toLocaleString()}
+              Live as of: {new Date(data[0].fetched_at).toLocaleString()}
             </p>
           )}
         </div>
@@ -168,13 +276,13 @@ export default function WeatherPage() {
                 <div className="flex justify-between">
                   <span className="text-gray-400">💨 Wind</span>
                   <span className="font-semibold">
-                    {stadium.wind_speed_kmh !== null ? `${stadium.wind_speed_kmh.toFixed(1)} km/h` : "—"}
+                    {stadium.wind_speed_kmh !== null ? `${(stadium.wind_speed_kmh * 0.621371).toFixed(1)} mph` : "—"}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-400">🌧️ Precipitation</span>
                   <span className="font-semibold">
-                    {stadium.precipitation_mm !== null ? `${stadium.precipitation_mm} mm` : "—"}
+                    {stadium.precipitation_mm !== null ? `${(stadium.precipitation_mm * 0.03937).toFixed(2)} in` : "—"}
                   </span>
                 </div>
               </div>
@@ -194,11 +302,6 @@ export default function WeatherPage() {
                 <span className="text-xs px-2 py-0.5 rounded-full bg-gray-700/50 text-gray-300">
                   {stadium.temperature_class ?? "—"}
                 </span>
-                {stadium.current_position && (
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300">
-                    #{stadium.current_position}
-                  </span>
-                )}
               </div>
             </div>
           ))}
