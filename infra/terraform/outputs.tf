@@ -42,3 +42,35 @@ output "github_actions_role_arn" {
   description = "IAM role ARN for GitHub Actions OIDC"
   value       = aws_iam_role.github_actions.arn
 }
+
+# ─── Cloud Enhancement Outputs ────────────────────────────────────────────────
+
+output "api_url" {
+  description = "API Gateway base URL"
+  value       = "${aws_api_gateway_stage.v1.invoke_url}"
+}
+
+output "cloudfront_url" {
+  description = "CloudFront distribution URL for the API"
+  value       = "https://${aws_cloudfront_distribution.api.domain_name}"
+}
+
+output "dashboard_url" {
+  description = "CloudWatch Dashboard URL"
+  value       = "https://${var.aws_region}.console.aws.amazon.com/cloudwatch/home?region=${var.aws_region}#dashboards:name=${aws_cloudwatch_dashboard.epl_pipeline.dashboard_name}"
+}
+
+output "step_function_arn" {
+  description = "Step Functions state machine ARN"
+  value       = aws_sfn_state_machine.daily_pipeline.arn
+}
+
+output "sns_alerts_topic_arn" {
+  description = "SNS topic ARN for pipeline alerts"
+  value       = aws_sns_topic.alerts.arn
+}
+
+output "sns_notifications_topic_arn" {
+  description = "SNS topic ARN for pipeline notifications"
+  value       = aws_sns_topic.pipeline_notifications.arn
+}

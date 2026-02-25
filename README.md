@@ -399,13 +399,31 @@ The pipeline includes an optional **AWS cloud deployment** that runs the same in
 | Component | AWS Service | Purpose |
 |-----------|-------------|---------|
 | Data Lake | S3 (Parquet) | Medallion architecture: raw → staging → mart |
-| Ingestion | Lambda (x3) | daily_ingest, live_matches, backfill |
-| Scheduling | EventBridge | Cron triggers for each Lambda |
+| Ingestion | Lambda (x5) | daily_ingest, live_matches, backfill, data_quality, api |
+| Orchestration | Step Functions | Daily pipeline: Ingest → Quality Check → Notify |
+| Scheduling | EventBridge | SFN trigger, live matches, backfill |
+| Public API | API Gateway + CloudFront | REST endpoints with CDN caching |
+| Monitoring | CloudWatch + SNS | Dashboard, alarms, notifications |
 | Catalog | Glue Catalog | Schema-on-read for Athena |
 | Query Engine | Athena | SQL analytics on S3 data |
 | Secrets | Secrets Manager | API key storage |
 | IaC | Terraform | All infrastructure as code |
 | CI/CD | GitHub Actions | OIDC-based deployment (no static keys) |
+
+### Public API
+
+After deployment, access pipeline data via the CloudFront URL:
+
+```bash
+# Get the API URL
+cd infra/terraform && terraform output cloudfront_url
+
+# Example endpoints
+curl https://<cloudfront-domain>/standings
+curl https://<cloudfront-domain>/scorers
+curl https://<cloudfront-domain>/matches
+curl https://<cloudfront-domain>/health
+```
 
 ### Quick Start (Cloud)
 
@@ -421,12 +439,15 @@ cd infra/terraform && terraform apply
 
 # 4. Run dbt against Athena
 cd dbt && dbt run --target cloud
+
+# 5. Get your public API URL
+terraform output cloudfront_url
 ```
 
 ### Cost
 
-Estimated **~$1.65/month** for dev environment. See [docs/AWS_ARCHITECTURE.md](docs/AWS_ARCHITECTURE.md) for full breakdown.
+Estimated **~$2.20/month** for dev environment. See [docs/AWS_ARCHITECTURE.md](docs/AWS_ARCHITECTURE.md) for full breakdown.
 
 ### Local vs Cloud
 
-Both targets work simultaneously — `dbt run` uses DuckDB locally, `dbt run --target cloud` uses Athena. The dashboard continues to serve from local JSON exports.
+Both targets work simultaneously — `dbt run` uses DuckDB locally, `dbt run --target cloud` uses Athena. The dashboard continues to serve from local JSON exports. The public API serves data directly from S3 via API Gateway + CloudFront.
