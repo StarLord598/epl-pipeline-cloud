@@ -87,49 +87,57 @@ export default function RacePage() {
   };
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <span className="text-3xl">📈</span>
-          <div>
-            <h1 className="text-2xl font-bold text-white">Points Race</h1>
-            <p className="text-gray-400 text-sm">
-              Cumulative points through {maxMatchday} matchdays · 2025-26 Season
-            </p>
+    <div className="animate-fade-in-up">
+      {/* Header */}
+      <div className="page-header">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
+              <span className="text-2xl">&#128200;</span>
+            </div>
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-white">Points Race</h1>
+              <p className="text-gray-400 text-sm mt-0.5">
+                Cumulative points through {maxMatchday} matchdays · 2025-26 Season
+              </p>
+            </div>
           </div>
+          <button
+            onClick={() => setShowAll(!showAll)}
+            className={`text-xs px-4 py-2 rounded-xl font-medium transition-all duration-200 self-start sm:self-auto ${
+              showAll
+                ? "bg-[#00ff85] text-[#0a0a0f] shadow-lg shadow-[#00ff85]/20"
+                : "glass text-gray-300 hover:text-white hover:bg-white/[0.06]"
+            }`}
+          >
+            {showAll ? "Top 6" : "All 20"}
+          </button>
         </div>
         <DataSourceBadge
           pattern="Cumulative Metric"
           source="Gold: mart_points_race → stg_live_matches → raw.live_matches"
           explanation="Running total pattern — cumulates points per team per matchday using SUM() OVER (PARTITION BY team ORDER BY matchday). Each row stores cumulative points through that gameweek. Enables time-series visualization of the title race without client-side computation."
         />
-        <button
-          onClick={() => setShowAll(!showAll)}
-          className={`text-xs px-3 py-1.5 rounded-lg transition ${
-            showAll ? "bg-[#00ff85] text-[#38003c]" : "bg-white/10 text-white hover:bg-white/20"
-          }`}
-        >
-          {showAll ? "Top 6" : "All 20"}
-        </button>
       </div>
 
       {/* Chart */}
-      <div className="glass rounded-xl p-4 mb-6" style={{ height: 500 }}>
+      <div className="glass rounded-2xl p-3 sm:p-5 mb-6" style={{ height: 460 }}>
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={chartData}>
             <XAxis
               dataKey="matchday"
-              stroke="#666"
-              tick={{ fontSize: 11 }}
+              stroke="#333"
+              tick={{ fontSize: 11, fill: "#666" }}
               interval={2}
             />
-            <YAxis stroke="#666" tick={{ fontSize: 11 }} />
+            <YAxis stroke="#333" tick={{ fontSize: 11, fill: "#666" }} />
             <Tooltip
               contentStyle={{
-                background: "#1a1a2e",
-                border: "1px solid rgba(255,255,255,0.1)",
-                borderRadius: 8,
+                background: "rgba(13, 17, 23, 0.95)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                borderRadius: 12,
                 fontSize: 12,
+                backdropFilter: "blur(12px)",
               }}
             />
             {activeTeams.map((team) => (
@@ -148,8 +156,8 @@ export default function RacePage() {
       </div>
 
       {/* Team selector */}
-      <div className="glass rounded-xl p-4">
-        <h2 className="text-xs text-gray-400 uppercase tracking-wider mb-3">Select Teams</h2>
+      <div className="glass rounded-2xl p-4 sm:p-5">
+        <h2 className="text-[11px] text-gray-500 uppercase tracking-wider mb-3 font-medium">Select Teams</h2>
         <div className="flex flex-wrap gap-2">
           {allTeams
             .sort((a, b) => {
@@ -164,12 +172,12 @@ export default function RacePage() {
                 <button
                   key={team}
                   onClick={() => toggleTeam(team)}
-                  className={`text-xs px-3 py-1.5 rounded-full border transition ${
+                  className={`text-xs px-3 py-1.5 rounded-lg border transition-all duration-200 ${
                     active
-                      ? "border-white/30 text-white"
-                      : "border-white/10 text-gray-500 hover:text-gray-300"
+                      ? "border-current shadow-sm"
+                      : "border-white/[0.06] text-gray-500 hover:text-gray-300 hover:border-white/[0.12]"
                   }`}
-                  style={active ? { borderColor: TEAM_COLORS[team], color: TEAM_COLORS[team] } : {}}
+                  style={active ? { borderColor: TEAM_COLORS[team], color: TEAM_COLORS[team], background: `${TEAM_COLORS[team]}10` } : {}}
                 >
                   {team} ({pts})
                 </button>

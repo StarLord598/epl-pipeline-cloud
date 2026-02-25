@@ -39,12 +39,21 @@ export default function ScorersPage() {
       .catch(() => setLoading(false));
   }, []);
 
-  if (loading) return <div className="text-gray-400 p-8">Loading…</div>;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 rounded-full border-2 border-[#00ff85]/30 border-t-[#00ff85] animate-spin" />
+          <span className="text-gray-500 text-sm">Loading scorers...</span>
+        </div>
+      </div>
+    );
+  }
 
   const top3 = scorers.slice(0, 3);
 
   const chartData = scorers.slice(0, 15).map((s) => ({
-    name: s.player_name.split(" ").slice(-1)[0],  // last name only
+    name: s.player_name.split(" ").slice(-1)[0],
     fullName: s.player_name,
     goals: s.goals,
     assists: s.assists,
@@ -56,14 +65,16 @@ export default function ScorersPage() {
   const chartLabel = tab === "goals" ? "Goals" : tab === "assists" ? "Assists" : "G+A";
 
   return (
-    <div>
+    <div className="animate-fade-in-up">
       {/* Header */}
-      <div className="mb-6">
-        <div className="flex items-center gap-3 mb-2">
-          <span className="text-3xl">🥇</span>
+      <div className="page-header">
+        <div className="flex items-center gap-4 mb-1">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center shadow-lg shadow-yellow-500/20">
+            <span className="text-2xl">&#127941;</span>
+          </div>
           <div>
-            <h1 className="text-2xl font-bold text-white">Golden Boot Race</h1>
-            <p className="text-gray-400 text-sm">Premier League · Live from Pipeline</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-white">Golden Boot Race</h1>
+            <p className="text-gray-400 text-sm mt-0.5">Premier League · Live from Pipeline</p>
           </div>
         </div>
         <DataSourceBadge
@@ -74,22 +85,22 @@ export default function ScorersPage() {
       </div>
 
       {/* Podium */}
-      <div className="flex justify-center items-end gap-4 mb-8">
+      <div className="flex justify-center items-end gap-3 sm:gap-6 mb-8">
         {[top3[1], top3[0], top3[2]].map((s, i) => {
           if (!s) return null;
           const heights = ["h-28", "h-36", "h-24"];
-          const medals  = ["🥈", "🥇", "🥉"];
+          const medals  = ["\u{1F948}", "\u{1F947}", "\u{1F949}"];
           const colors  = ["#C0C0C0", "#FFD700", "#CD7F32"];
           return (
             <div key={s.player_id} className="flex flex-col items-center gap-2">
               <span className="text-2xl">{medals[i]}</span>
-              <p className="text-white font-bold text-sm text-center leading-tight w-24">
+              <p className="text-white font-bold text-sm text-center leading-tight w-20 sm:w-24 truncate">
                 {s.player_name.split(" ").slice(-1)[0]}
               </p>
-              <p className="text-xs text-gray-400 text-center">{s.team_name.split(" ")[0]}</p>
+              <p className="text-[11px] text-gray-500 text-center truncate max-w-20">{s.team_name.split(" ")[0]}</p>
               <div
-                className={`w-20 ${heights[i]} rounded-t-lg flex items-center justify-center`}
-                style={{ background: `${colors[i]}22`, border: `2px solid ${colors[i]}` }}
+                className={`w-16 sm:w-20 ${heights[i]} rounded-t-xl flex items-center justify-center glass`}
+                style={{ borderBottom: `3px solid ${colors[i]}`, boxShadow: `0 0 20px ${colors[i]}20` }}
               >
                 <span className="font-bold text-2xl" style={{ color: colors[i] }}>
                   {s.goals}
@@ -106,10 +117,10 @@ export default function ScorersPage() {
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
+            className={`px-4 py-2 rounded-xl text-xs font-medium transition-all duration-200 ${
               tab === t
-                ? "bg-[#00ff85] text-black"
-                : "glass text-gray-300 hover:text-white"
+                ? "bg-[#00ff85] text-[#0a0a0f] shadow-lg shadow-[#00ff85]/20"
+                : "glass text-gray-400 hover:text-white"
             }`}
           >
             {t === "goals" ? "Goals" : t === "assists" ? "Assists" : "G+A"}
@@ -118,27 +129,28 @@ export default function ScorersPage() {
       </div>
 
       {/* Bar chart */}
-      <div className="glass rounded-xl p-4 mb-8">
-        <h2 className="text-sm font-semibold text-gray-400 mb-4 uppercase tracking-wide">
+      <div className="glass rounded-2xl p-3 sm:p-5 mb-8">
+        <h2 className="text-[11px] font-medium text-gray-500 mb-4 uppercase tracking-wider">
           Top 15 — {chartLabel}
         </h2>
         <ResponsiveContainer width="100%" height={280}>
           <BarChart data={chartData} margin={{ top: 5, right: 10, bottom: 40, left: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" />
             <XAxis
               dataKey="name"
-              tick={{ fill: "#9ca3af", fontSize: 11 }}
+              tick={{ fill: "#666", fontSize: 11 }}
               angle={-35}
               textAnchor="end"
               interval={0}
             />
-            <YAxis tick={{ fill: "#9ca3af", fontSize: 12 }} />
+            <YAxis tick={{ fill: "#666", fontSize: 12 }} />
             <Tooltip
               contentStyle={{
-                background: "rgba(17,24,39,0.95)",
-                border: "1px solid rgba(255,255,255,0.1)",
-                borderRadius: "8px",
+                background: "rgba(13, 17, 23, 0.95)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                borderRadius: "12px",
                 color: "#fff",
+                backdropFilter: "blur(12px)",
               }}
               formatter={(value, _name, props) => [
                 `${value} ${chartLabel}`,
@@ -146,7 +158,7 @@ export default function ScorersPage() {
               ]}
               labelFormatter={(label) => chartData.find((d) => d.name === label)?.team ?? label}
             />
-            <Bar dataKey={chartKey} radius={[4, 4, 0, 0]}>
+            <Bar dataKey={chartKey} radius={[6, 6, 0, 0]}>
               {chartData.map((_, idx) => (
                 <Cell key={idx} fill={COLORS[idx % COLORS.length]} />
               ))}
@@ -156,37 +168,37 @@ export default function ScorersPage() {
       </div>
 
       {/* Full table */}
-      <div className="glass rounded-xl overflow-hidden">
+      <div className="glass rounded-2xl overflow-hidden">
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-gray-400 text-xs uppercase tracking-wider border-b border-white/10">
-              <th className="text-left py-3 px-4 w-10">#</th>
-              <th className="text-left py-3 px-4">Player</th>
-              <th className="text-left py-3 px-4 hidden sm:table-cell">Club</th>
-              <th className="text-center py-3 px-3">Goals</th>
-              <th className="text-center py-3 px-3 hidden sm:table-cell">Assists</th>
-              <th className="text-center py-3 px-3 hidden md:table-cell">G+A</th>
-              <th className="text-center py-3 px-3 hidden md:table-cell">Apps</th>
-              <th className="text-center py-3 px-3 hidden lg:table-cell">G/Game</th>
+            <tr className="text-gray-500 text-[11px] uppercase tracking-wider border-b border-white/[0.06]">
+              <th className="text-left py-3 px-3 sm:px-4 w-10">#</th>
+              <th className="text-left py-3 px-3 sm:px-4">Player</th>
+              <th className="text-left py-3 px-3 hidden sm:table-cell">Club</th>
+              <th className="text-center py-3 px-2 sm:px-3">Goals</th>
+              <th className="text-center py-3 px-2 sm:px-3 hidden sm:table-cell">Assists</th>
+              <th className="text-center py-3 px-2 sm:px-3 hidden md:table-cell">G+A</th>
+              <th className="text-center py-3 px-2 sm:px-3 hidden md:table-cell">Apps</th>
+              <th className="text-center py-3 px-2 sm:px-3 hidden lg:table-cell">G/Game</th>
             </tr>
           </thead>
           <tbody>
             {scorers.map((s, i) => (
-              <tr key={s.player_id} className="border-b border-white/5 card-hover">
-                <td className="py-3 px-4">
-                  <span className={`font-bold ${i < 3 ? "text-yellow-400" : "text-gray-400"}`}>
-                    {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : s.rank}
+              <tr key={s.player_id} className="border-b border-white/[0.04] card-hover">
+                <td className="py-3 px-3 sm:px-4">
+                  <span className={`font-bold tabular-nums ${i < 3 ? "text-yellow-400" : "text-gray-500"}`}>
+                    {s.rank}
                   </span>
                 </td>
-                <td className="py-3 px-4 font-medium text-white">{s.player_name}</td>
-                <td className="py-3 px-4 text-gray-400 hidden sm:table-cell">{s.team_name}</td>
-                <td className="text-center py-3 px-3">
-                  <span className="font-bold text-[#00ff85] text-base">{s.goals}</span>
+                <td className="py-3 px-3 sm:px-4 font-medium text-white">{s.player_name}</td>
+                <td className="py-3 px-3 text-gray-500 hidden sm:table-cell">{s.team_name}</td>
+                <td className="text-center py-3 px-2 sm:px-3">
+                  <span className="font-bold text-[#00ff85] text-base tabular-nums">{s.goals}</span>
                 </td>
-                <td className="text-center py-3 px-3 text-gray-300 hidden sm:table-cell">{s.assists}</td>
-                <td className="text-center py-3 px-3 text-gray-300 hidden md:table-cell">{s.goal_contributions}</td>
-                <td className="text-center py-3 px-3 text-gray-400 hidden md:table-cell">{s.matches_played}</td>
-                <td className="text-center py-3 px-3 text-gray-400 hidden lg:table-cell">
+                <td className="text-center py-3 px-2 sm:px-3 text-gray-400 tabular-nums hidden sm:table-cell">{s.assists}</td>
+                <td className="text-center py-3 px-2 sm:px-3 text-gray-400 tabular-nums hidden md:table-cell">{s.goal_contributions}</td>
+                <td className="text-center py-3 px-2 sm:px-3 text-gray-500 tabular-nums hidden md:table-cell">{s.matches_played}</td>
+                <td className="text-center py-3 px-2 sm:px-3 text-gray-500 tabular-nums hidden lg:table-cell">
                   {typeof s.goals_per_game === "number" ? s.goals_per_game.toFixed(2) : s.goals_per_game}
                 </td>
               </tr>

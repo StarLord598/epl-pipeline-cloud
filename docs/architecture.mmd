@@ -1,46 +1,119 @@
-%%{init: {'theme': 'dark', 'themeVariables': {'fontSize': '16px', 'primaryColor': '#38003c', 'lineColor': '#00ff85'}}}%%
+%%{init: {'theme': 'dark', 'themeVariables': {'fontSize': '14px', 'primaryColor': '#38003c', 'lineColor': '#00ff85'}}}%%
 
-flowchart LR
-    subgraph SRC["🌐 Sources"]
-        direction TB
+flowchart TB
+    subgraph SRC["🌐 Data Sources"]
+        direction LR
         A1["⚽ football-data.org<br/><b>Live API</b>"]
         A2["📦 StatsBomb<br/><b>Historical</b>"]
     end
 
-    subgraph AIR["🔄 Airflow"]
+    subgraph LOCAL["💻 Local Pipeline"]
         direction TB
-        B1["<b>live_poll_15m</b><br/>⏰ Every 15 min"]
-        B2["<b>hourly_refresh</b><br/>⏰ Every hour"]
-        B3["<b>dbt_transform</b><br/>⏰ Every 30 min"]
-        B4["<b>daily_reconcile</b><br/>⏰ 2 AM daily"]
-    end
-
-    subgraph DWH["🏗️ DuckDB — Medallion"]
-        direction TB
-        C1["🥉 <b>Raw</b><br/>matches · events · lineups<br/>live_matches · live_standings"]
-        C2["🥈 <b>Staging</b><br/>stg_matches · stg_standings<br/>stg_events · silver_live"]
-        C3["🥇 <b>Mart</b><br/>league_table · top_scorers<br/>recent_results · live_monitor"]
-    end
-
-    subgraph OUT["📊 Serving"]
-        direction TB
+        subgraph AIR["🔄 Airflow (Docker)"]
+            B1["live_poll_15m"]
+            B2["hourly_refresh"]
+            B3["dbt_transform"]
+            B4["daily_reconcile"]
+        end
+        subgraph DWH["🦆 DuckDB — Medallion"]
+            C1["🥉 Raw"]
+            C2["🥈 Staging"]
+            C3["🥇 Mart"]
+        end
         D1["📄 JSON Export"]
-        D2["🖥️ Next.js<br/>Dashboard"]
     end
 
-    A1 -->|"every 15 min"| B1
-    A1 -->|"hourly"| B2
-    A2 -->|"daily"| B4
-    B1 --> C1
-    B2 --> C1
-    B4 --> C1
-    B3 --> C2
-    C1 -->|"dbt"| C2
-    C2 -->|"dbt"| C3
-    C3 --> D1
-    D1 --> D2
+    subgraph CLOUD["☁️ AWS Cloud Pipeline"]
+        direction TB
+        subgraph ORCH["⚡ Orchestration"]
+            E1["EventBridge<br/>Schedules"]
+            E2["Step Functions<br/>Daily Pipeline"]
+        end
+        subgraph LAMBDA["λ Lambda Functions"]
+            F1["daily_ingest"]
+            F2["live_matches"]
+            F3["backfill"]
+            F4["data_quality"]
+            F5["api"]
+        end
+        subgraph LAKE["🪣 S3 Data Lake"]
+            G1["raw/"]
+            G2["staging/"]
+            G3["mart/"]
+        end
+        subgraph QUERY["🔍 Query & Catalog"]
+            H1["Glue Catalog"]
+            H2["Athena"]
+        end
+        subgraph API["🌍 Public API"]
+            I1["API Gateway"]
+            I2["CloudFront CDN"]
+        end
+        subgraph DASH["🖥️ Dashboard"]
+            J1["ECR"]
+            J2["ECS Fargate<br/>Next.js"]
+        end
+        subgraph MON["📡 Monitoring"]
+            K1["CloudWatch<br/>Dashboard + Alarms"]
+            K2["SNS<br/>Notifications"]
+        end
+    end
 
+    subgraph CICD["🔄 CI/CD"]
+        L1["GitHub Actions<br/>OIDC Auth"]
+        L2["Terraform IaC"]
+    end
+
+    %% Source connections
+    A1 --> B1 & B2
+    A2 --> B4
+    A1 --> F1 & F2 & F3
+
+    %% Local flow
+    B1 & B2 & B4 --> C1
+    B3 --> C2
+    C1 -->|dbt| C2 -->|dbt| C3
+    C3 --> D1
+
+    %% Cloud orchestration
+    E1 --> E2
+    E1 --> F2 & F3
+    E2 --> F1
+    E2 --> F4
+    E2 --> K2
+
+    %% Lambda to S3
+    F1 & F2 & F3 --> G1
+    F4 --> G1
+
+    %% S3 to query
+    G1 --> H1
+    H1 --> H2
+
+    %% API flow
+    I2 --> I1 --> F5
+    F5 --> G1
+
+    %% Dashboard
+    J1 --> J2
+    J2 --> G1
+
+    %% Monitoring
+    F1 & F2 & F3 --> K1
+    K1 --> K2
+
+    %% CI/CD
+    L1 --> L2
+    L1 --> F1 & F2 & F3
+
+    %% Styles
     style SRC fill:#0046A7,stroke:#00c8ff,color:#fff
-    style AIR fill:#38003c,stroke:#f97316,color:#fff
-    style DWH fill:#1a1a2e,stroke:#FFD700,color:#fff
-    style OUT fill:#0f4c3a,stroke:#00ff85,color:#fff
+    style LOCAL fill:#1a1a2e,stroke:#FFD700,color:#fff
+    style CLOUD fill:#0d1117,stroke:#00ff85,color:#fff
+    style CICD fill:#38003c,stroke:#f97316,color:#fff
+    style LAKE fill:#1a2332,stroke:#ff6b6b,color:#fff
+    style LAMBDA fill:#1a2332,stroke:#ffd93d,color:#fff
+    style QUERY fill:#1a2332,stroke:#00c8ff,color:#fff
+    style API fill:#1a2332,stroke:#9b59b6,color:#fff
+    style DASH fill:#1a2332,stroke:#8e44ad,color:#fff
+    style MON fill:#1a2332,stroke:#e67e22,color:#fff

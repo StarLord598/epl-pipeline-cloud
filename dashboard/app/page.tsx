@@ -56,14 +56,16 @@ export default async function LeagueTablePage() {
   const seasonLabel  = maxPlayed >= 38 ? "Final Standings" : `Matchday ${maxPlayed}`;
 
   return (
-    <div>
+    <div className="animate-fade-in-up">
       {/* Header */}
-      <div className="mb-6">
-        <div className="flex items-center gap-3 mb-2">
-          <span className="text-3xl">🏆</span>
+      <div className="page-header">
+        <div className="flex items-center gap-4 mb-1">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-yellow-400 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/20">
+            <span className="text-2xl">&#9917;</span>
+          </div>
           <div>
-            <h1 className="text-2xl font-bold text-white">Premier League Table</h1>
-            <p className="text-gray-400 text-sm">2025-26 Season · {seasonLabel} · Live from Pipeline</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-white">Premier League Table</h1>
+            <p className="text-gray-400 text-sm mt-0.5">2025-26 Season · {seasonLabel} · Live from Pipeline</p>
           </div>
         </div>
         <DataSourceBadge
@@ -77,36 +79,36 @@ export default async function LeagueTablePage() {
         <div className="flex flex-wrap gap-3">
           {Object.entries(ZONE_LABELS).map(([key, val]) => (
             <div key={key} className="flex items-center gap-1.5 text-xs">
-              <div className="w-3 h-3 rounded-sm" style={{ background: val.color }} />
-              <span className="text-gray-400">{val.label}</span>
+              <div className="w-2.5 h-2.5 rounded-full" style={{ background: val.color, boxShadow: `0 0 6px ${val.color}60` }} />
+              <span className="text-gray-500">{val.label}</span>
             </div>
           ))}
         </div>
 
         <Link
           href="/health"
-          className="text-xs text-emerald-300 hover:underline whitespace-nowrap"
+          className="text-xs text-[#00ff85]/80 hover:text-[#00ff85] transition-colors whitespace-nowrap"
         >
-          View Pipeline Health →
+          Pipeline Health →
         </Link>
       </div>
 
       {/* Table */}
-      <div className="glass rounded-xl overflow-hidden">
+      <div className="glass rounded-2xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-gray-400 text-xs uppercase tracking-wider border-b border-white/10">
-                <th className="text-left py-3 px-4 w-8">#</th>
-                <th className="text-left py-3 px-4">Club</th>
-                <th className="text-center py-3 px-2">MP</th>
-                <th className="text-center py-3 px-2">W</th>
-                <th className="text-center py-3 px-2">D</th>
-                <th className="text-center py-3 px-2">L</th>
-                <th className="text-center py-3 px-2">GF</th>
-                <th className="text-center py-3 px-2">GA</th>
-                <th className="text-center py-3 px-2">GD</th>
-                <th className="text-center py-3 px-2 font-bold text-white">Pts</th>
+              <tr className="text-gray-500 text-[11px] uppercase tracking-wider border-b border-white/[0.06]">
+                <th className="text-left py-3 px-3 sm:px-4 w-8">#</th>
+                <th className="text-left py-3 px-3 sm:px-4">Club</th>
+                <th className="text-center py-3 px-1.5 sm:px-2">MP</th>
+                <th className="text-center py-3 px-1.5 sm:px-2">W</th>
+                <th className="text-center py-3 px-1.5 sm:px-2">D</th>
+                <th className="text-center py-3 px-1.5 sm:px-2">L</th>
+                <th className="text-center py-3 px-1.5 sm:px-2 hidden sm:table-cell">GF</th>
+                <th className="text-center py-3 px-1.5 sm:px-2 hidden sm:table-cell">GA</th>
+                <th className="text-center py-3 px-1.5 sm:px-2">GD</th>
+                <th className="text-center py-3 px-1.5 sm:px-2 font-bold text-gray-300">Pts</th>
                 <th className="text-center py-3 px-2 hidden md:table-cell">Win%</th>
                 <th className="text-center py-3 px-2 hidden lg:table-cell">Form</th>
               </tr>
@@ -122,34 +124,34 @@ export default async function LeagueTablePage() {
                 return (
                   <tr
                     key={(team.team_id as number) ?? pos}
-                    className={`border-b border-white/5 card-hover ${zoneClass} ${isChampion ? "bg-yellow-500/5" : ""}`}
+                    className={`border-b border-white/[0.04] card-hover ${zoneClass} ${isChampion ? "bg-yellow-500/[0.03]" : ""}`}
                   >
-                    <td className="py-3 px-4">
-                      <span className={`font-bold text-sm ${isChampion ? "text-yellow-400" : "text-gray-400"}`}>
-                        {isChampion ? "🏆" : pos}
+                    <td className="py-3 px-3 sm:px-4">
+                      <span className={`font-bold text-sm ${isChampion ? "text-yellow-400 text-glow-green" : "text-gray-500"}`}>
+                        {pos}
                       </span>
                     </td>
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-2">
+                    <td className="py-3 px-3 sm:px-4">
+                      <div className="flex items-center gap-2.5">
                         <TeamBadge teamName={displayName} size="sm" />
-                        <span className="font-medium text-white">{displayName}</span>
+                        <span className="font-medium text-white text-sm">{displayName}</span>
                       </div>
                     </td>
-                    <td className="text-center py-3 px-2 text-gray-300">{team.played as number}</td>
-                    <td className="text-center py-3 px-2 text-green-400">{team.won as number}</td>
-                    <td className="text-center py-3 px-2 text-gray-400">{team.drawn as number}</td>
-                    <td className="text-center py-3 px-2 text-red-400">{team.lost as number}</td>
-                    <td className="text-center py-3 px-2 text-gray-300">{team.goals_for as number}</td>
-                    <td className="text-center py-3 px-2 text-gray-300">{team.goals_against as number}</td>
-                    <td className="text-center py-3 px-2">
-                      <span className={(team.goal_difference as number) > 0 ? "text-green-400" : (team.goal_difference as number) < 0 ? "text-red-400" : "text-gray-400"}>
+                    <td className="text-center py-3 px-1.5 sm:px-2 text-gray-400 tabular-nums">{team.played as number}</td>
+                    <td className="text-center py-3 px-1.5 sm:px-2 text-green-400 tabular-nums">{team.won as number}</td>
+                    <td className="text-center py-3 px-1.5 sm:px-2 text-gray-500 tabular-nums">{team.drawn as number}</td>
+                    <td className="text-center py-3 px-1.5 sm:px-2 text-red-400 tabular-nums">{team.lost as number}</td>
+                    <td className="text-center py-3 px-1.5 sm:px-2 text-gray-400 tabular-nums hidden sm:table-cell">{team.goals_for as number}</td>
+                    <td className="text-center py-3 px-1.5 sm:px-2 text-gray-400 tabular-nums hidden sm:table-cell">{team.goals_against as number}</td>
+                    <td className="text-center py-3 px-1.5 sm:px-2 tabular-nums">
+                      <span className={(team.goal_difference as number) > 0 ? "text-green-400" : (team.goal_difference as number) < 0 ? "text-red-400" : "text-gray-500"}>
                         {(team.goal_difference as number) > 0 ? `+${team.goal_difference}` : team.goal_difference as number}
                       </span>
                     </td>
-                    <td className="text-center py-3 px-2">
-                      <span className="font-bold text-white text-base">{team.points as number}</span>
+                    <td className="text-center py-3 px-1.5 sm:px-2">
+                      <span className="font-bold text-white text-base tabular-nums">{team.points as number}</span>
                     </td>
-                    <td className="text-center py-3 px-2 text-gray-400 hidden md:table-cell">
+                    <td className="text-center py-3 px-2 text-gray-400 hidden md:table-cell tabular-nums">
                       {team.win_rate as number}%
                     </td>
                     <td className="text-center py-3 px-2 hidden lg:table-cell">
@@ -164,33 +166,29 @@ export default async function LeagueTablePage() {
       </div>
 
       {/* Dynamic stats summary cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mt-6 stagger-children">
         <StatCard
           label="Most Goals"
-          value={stripFC(topGoalTeam?.team_name as string ?? "—")}
+          value={stripFC(topGoalTeam?.team_name as string ?? "--")}
           sub={`${topGoalTeam?.goals_for} scored`}
-          icon="⚡"
           color="#6CABDD"
         />
         <StatCard
           label="Best Defence"
-          value={stripFC(bestDefence?.team_name as string ?? "—")}
+          value={stripFC(bestDefence?.team_name as string ?? "--")}
           sub={`${bestDefence?.goals_against} conceded`}
-          icon="🛡️"
           color="#EF0107"
         />
         <StatCard
           label="Most Wins"
-          value={stripFC(mostWins?.team_name as string ?? "—")}
+          value={stripFC(mostWins?.team_name as string ?? "--")}
           sub={`${mostWins?.won} wins`}
-          icon="🏆"
-          color="#6CABDD"
+          color="#00ff85"
         />
         <StatCard
           label="Relegated"
           value={relegated.join(" · ")}
           sub="Bottom 3"
-          icon="⬇️"
           color="#ef4444"
         />
       </div>
@@ -198,17 +196,14 @@ export default async function LeagueTablePage() {
   );
 }
 
-function StatCard({ label, value, sub, icon, color }: {
-  label: string; value: string; sub: string | undefined; icon: string; color: string;
+function StatCard({ label, value, sub, color }: {
+  label: string; value: string; sub: string | undefined; color: string;
 }) {
   return (
-    <div className="glass rounded-xl p-4">
-      <div className="flex items-center gap-2 mb-2">
-        <span className="text-xl">{icon}</span>
-        <span className="text-xs text-gray-400 uppercase tracking-wider">{label}</span>
-      </div>
-      <p className="font-bold text-white text-sm" style={{ color }}>{value}</p>
-      <p className="text-gray-400 text-xs mt-1">{sub}</p>
+    <div className="glass rounded-xl p-4 glass-hover">
+      <p className="text-[11px] text-gray-500 uppercase tracking-wider mb-2">{label}</p>
+      <p className="font-bold text-sm truncate" style={{ color }}>{value}</p>
+      <p className="text-gray-500 text-xs mt-1">{sub}</p>
     </div>
   );
 }

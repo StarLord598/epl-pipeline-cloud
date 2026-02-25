@@ -17,7 +17,7 @@ interface Match {
 }
 
 const resultClass = (r: string | undefined) =>
-  r === "W" ? "text-green-400 font-bold" : r === "L" ? "text-red-400" : "text-gray-400";
+  r === "W" ? "text-green-400 font-bold" : r === "L" ? "text-red-400" : "text-gray-500";
 
 export default function ResultsPage() {
   const [matches, setMatches] = useState<Match[]>([]);
@@ -53,19 +53,30 @@ export default function ResultsPage() {
 
   const sortedRounds = Object.keys(byRound)
     .map(Number)
-    .sort((a, b) => b - a);  // most recent first
+    .sort((a, b) => b - a);
 
-  if (loading) return <div className="text-gray-400 p-8">Loading…</div>;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 rounded-full border-2 border-[#00ff85]/30 border-t-[#00ff85] animate-spin" />
+          <span className="text-gray-500 text-sm">Loading results...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div>
+    <div className="animate-fade-in-up">
       {/* Header */}
-      <div className="mb-6">
-        <div className="flex items-center gap-3 mb-2">
-          <span className="text-3xl">📅</span>
+      <div className="page-header">
+        <div className="flex items-center gap-4 mb-1">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg shadow-violet-500/20">
+            <span className="text-2xl">&#128197;</span>
+          </div>
           <div>
-            <h1 className="text-2xl font-bold text-white">Match Results</h1>
-            <p className="text-gray-400 text-sm">
+            <h1 className="text-2xl sm:text-3xl font-bold text-white">Match Results</h1>
+            <p className="text-gray-400 text-sm mt-0.5">
               Premier League · {matches.length} matches · Live from Pipeline
             </p>
           </div>
@@ -81,8 +92,10 @@ export default function ResultsPage() {
       <div className="flex flex-wrap gap-1.5 mb-6">
         <button
           onClick={() => setSelectedRound("all")}
-          className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-            selectedRound === "all" ? "bg-[#00ff85] text-black" : "glass text-gray-400 hover:text-white"
+          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
+            selectedRound === "all"
+              ? "bg-[#00ff85] text-[#0a0a0f] shadow-lg shadow-[#00ff85]/20"
+              : "glass text-gray-500 hover:text-gray-300"
           }`}
         >
           All
@@ -91,8 +104,10 @@ export default function ResultsPage() {
           <button
             key={r}
             onClick={() => setSelectedRound(r)}
-            className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-              selectedRound === r ? "bg-[#00ff85] text-black" : "glass text-gray-400 hover:text-white"
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
+              selectedRound === r
+                ? "bg-[#00ff85] text-[#0a0a0f] shadow-lg shadow-[#00ff85]/20"
+                : "glass text-gray-500 hover:text-gray-300"
             }`}
           >
             GW{r}
@@ -101,47 +116,47 @@ export default function ResultsPage() {
       </div>
 
       {/* Results by round */}
-      <div className="space-y-6">
+      <div className="space-y-4">
         {sortedRounds.map((round) => (
-          <div key={round} className="glass rounded-xl overflow-hidden">
-            <div className="px-4 py-2 border-b border-white/10 bg-white/5">
-              <h2 className="text-sm font-semibold text-gray-300">Gameweek {round}</h2>
+          <div key={round} className="glass rounded-2xl overflow-hidden">
+            <div className="px-4 py-2.5 border-b border-white/[0.06] bg-white/[0.02]">
+              <h2 className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Gameweek {round}</h2>
             </div>
-            <div className="divide-y divide-white/5">
+            <div className="divide-y divide-white/[0.04]">
               {byRound[round]
                 .sort((a, b) => new Date(a.match_date).getTime() - new Date(b.match_date).getTime())
                 .map((m) => (
-                <div key={m.match_id} className="flex items-center px-4 py-3 card-hover">
+                <div key={m.match_id} className="flex items-center px-3 sm:px-4 py-3 card-hover">
                   {/* Date */}
-                  <span className="text-xs text-gray-500 w-20 hidden sm:block">
+                  <span className="text-[11px] text-gray-600 w-16 hidden sm:block tabular-nums">
                     {m.match_date
                       ? new Date(m.match_date).toLocaleDateString("en-GB", { day: "numeric", month: "short" })
-                      : "—"}
+                      : "--"}
                   </span>
 
                   {/* Home team */}
-                  <div className="flex items-center justify-end gap-2 flex-1">
-                    <span className={`text-sm font-medium ${m.winner === "HOME_TEAM" ? "text-white" : "text-gray-400"}`}>
+                  <div className="flex items-center justify-end gap-2 flex-1 min-w-0">
+                    <span className={`text-sm font-medium truncate ${m.winner === "HOME_TEAM" ? "text-white" : "text-gray-500"}`}>
                       {m.home_team_name}
                     </span>
-                    <span className={`text-xs ${resultClass(m.home_result)}`}>
+                    <span className={`text-[10px] ${resultClass(m.home_result)}`}>
                       {m.home_result}
                     </span>
                   </div>
 
                   {/* Score */}
-                  <div className="mx-4 text-center min-w-[60px]">
-                    <span className="text-lg font-bold text-white tabular-nums">
-                      {m.home_score} – {m.away_score}
+                  <div className="mx-3 sm:mx-4 text-center min-w-[56px]">
+                    <span className="text-base font-bold text-white tabular-nums">
+                      {m.home_score} - {m.away_score}
                     </span>
                   </div>
 
                   {/* Away team */}
-                  <div className="flex items-center gap-2 flex-1">
-                    <span className={`text-xs ${resultClass(m.away_result)}`}>
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <span className={`text-[10px] ${resultClass(m.away_result)}`}>
                       {m.away_result}
                     </span>
-                    <span className={`text-sm font-medium ${m.winner === "AWAY_TEAM" ? "text-white" : "text-gray-400"}`}>
+                    <span className={`text-sm font-medium truncate ${m.winner === "AWAY_TEAM" ? "text-white" : "text-gray-500"}`}>
                       {m.away_team_name}
                     </span>
                   </div>
