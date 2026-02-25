@@ -23,11 +23,11 @@ resource "aws_security_group" "redshift_serverless" {
   vpc_id      = data.aws_vpc.default.id
 
   ingress {
-    description = "Redshift from anywhere (portfolio project)"
+    description = "Redshift access (restricted by var.redshift_allowed_cidrs)"
     from_port   = 5439
     to_port     = 5439
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = var.redshift_allowed_cidrs
   }
 
   egress {

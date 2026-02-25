@@ -2,6 +2,9 @@
 EPL Pipeline API Lambda
 Serves pipeline data from S3 via API Gateway.
 Routes: /standings, /scorers, /matches, /health
+
+Note: CORS Allow-Origin is set to '*' for this portfolio demo.
+In production, restrict to specific domains.
 """
 
 import json

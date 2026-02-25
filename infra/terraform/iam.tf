@@ -93,6 +93,7 @@ resource "aws_iam_role_policy" "lambda_redshift" {
     Version = "2012-10-17"
     Statement = [
       {
+        Sid    = "RedshiftDataAPI"
         Effect = "Allow"
         Action = [
           "redshift-data:ExecuteStatement",
@@ -101,15 +102,20 @@ resource "aws_iam_role_policy" "lambda_redshift" {
           "redshift-data:ListStatements"
         ]
         Resource = "*"
+        # Note: redshift-data API does not support resource-level permissions
       },
       {
+        Sid    = "RedshiftServerlessAccess"
         Effect = "Allow"
         Action = [
           "redshift-serverless:GetCredentials",
           "redshift-serverless:GetWorkgroup",
           "redshift-serverless:GetNamespace"
         ]
-        Resource = "*"
+        Resource = [
+          "arn:aws:redshift-serverless:${var.aws_region}:${data.aws_caller_identity.current.account_id}:namespace/*",
+          "arn:aws:redshift-serverless:${var.aws_region}:${data.aws_caller_identity.current.account_id}:workgroup/*"
+        ]
       }
     ]
   })

@@ -60,3 +60,9 @@ variable "redshift_base_capacity" {
   type        = number
   default     = 8
 }
+
+variable "redshift_allowed_cidrs" {
+  description = "CIDR blocks allowed to connect to Redshift (default: open for portfolio demo, restrict in production)"
+  type        = list(string)
+  default     = ["0.0.0.0/0"]
+}
