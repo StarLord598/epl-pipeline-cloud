@@ -33,21 +33,21 @@ interface SCD2Row {
   is_current: boolean;
 }
 
-const MOMENTUM_STYLE: Record<string, { bg: string; text: string; label: string }> = {
-  HOT: { bg: "bg-red-500/20", text: "text-red-400", label: "🔥 HOT" },
-  STEADY: { bg: "bg-yellow-500/20", text: "text-yellow-400", label: "⚡ STEADY" },
-  COOLING: { bg: "bg-blue-400/20", text: "text-blue-400", label: "❄️ COOLING" },
-  COLD: { bg: "bg-blue-800/20", text: "text-blue-300", label: "🥶 COLD" },
+const MOMENTUM_STYLE: Record<string, { bg: string; border: string; text: string; label: string }> = {
+  HOT:     { bg: "bg-red-500/[0.06]",    border: "border-red-500/20",    text: "text-red-400",    label: "HOT" },
+  STEADY:  { bg: "bg-yellow-500/[0.06]",  border: "border-yellow-500/20",  text: "text-yellow-400",  label: "STEADY" },
+  COOLING: { bg: "bg-blue-400/[0.06]",    border: "border-blue-400/20",    text: "text-blue-400",    label: "COOLING" },
+  COLD:    { bg: "bg-blue-800/[0.06]",    border: "border-blue-300/20",    text: "text-blue-300",    label: "COLD" },
 };
 
 function FormBadge({ char }: { char: string }) {
   const colors: Record<string, string> = {
-    W: "bg-green-500",
-    D: "bg-gray-500",
-    L: "bg-red-500",
+    W: "bg-green-500/80 shadow-green-500/20",
+    D: "bg-gray-500/60",
+    L: "bg-red-500/80 shadow-red-500/20",
   };
   return (
-    <span className={`inline-flex items-center justify-center w-6 h-6 rounded text-xs font-bold text-white ${colors[char] || "bg-gray-700"}`}>
+    <span className={`inline-flex items-center justify-center w-6 h-6 rounded text-[10px] font-bold text-white shadow-sm ${colors[char] || "bg-gray-700"}`}>
       {char}
     </span>
   );
@@ -92,15 +92,42 @@ export default function FormPage() {
   }).sort((a, b) => b.change - a.change);
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <span className="text-3xl">🔥</span>
-          <div>
-            <h1 className="text-2xl font-bold text-white">Form & Momentum</h1>
-            <p className="text-gray-400 text-sm">
-              Rolling 5-game form · SCD2 position tracking · 2025-26 Season
-            </p>
+    <div className="animate-fade-in-up">
+      {/* Header */}
+      <div className="page-header">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center shadow-lg shadow-orange-500/20">
+              <span className="text-2xl">&#128293;</span>
+            </div>
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-white">Form & Momentum</h1>
+              <p className="text-gray-400 text-sm mt-0.5">
+                Rolling 5-game form · SCD2 position tracking · 2025-26 Season
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-2 self-start sm:self-auto">
+            <button
+              onClick={() => setView("momentum")}
+              className={`text-xs px-4 py-2 rounded-xl font-medium transition-all duration-200 ${
+                view === "momentum"
+                  ? "bg-[#00ff85] text-[#0a0a0f] shadow-lg shadow-[#00ff85]/20"
+                  : "glass text-gray-300 hover:text-white"
+              }`}
+            >
+              Momentum
+            </button>
+            <button
+              onClick={() => setView("positions")}
+              className={`text-xs px-4 py-2 rounded-xl font-medium transition-all duration-200 ${
+                view === "positions"
+                  ? "bg-[#00ff85] text-[#0a0a0f] shadow-lg shadow-[#00ff85]/20"
+                  : "glass text-gray-300 hover:text-white"
+              }`}
+            >
+              Position History
+            </button>
           </div>
         </div>
         <DataSourceBadge
@@ -108,38 +135,27 @@ export default function FormPage() {
           source="Gold: mart_rolling_form + mart_scd2_standings"
           explanation="Two patterns: (1) Rolling Window — AVG(points) OVER (ROWS BETWEEN 4 PRECEDING AND CURRENT ROW) for 5-game PPG, classifying HOT/STEADY/COOLING/COLD. (2) SCD Type 2 — tracks every position change with valid_from/valid_to for point-in-time queries. Only creates a new version when position changes — consecutive matchdays at the same position collapse into one row."
         />
-        <div className="flex gap-2">
-          <button
-            onClick={() => setView("momentum")}
-            className={`text-xs px-3 py-1.5 rounded-lg ${view === "momentum" ? "bg-[#00ff85] text-[#38003c]" : "bg-white/10 text-white"}`}
-          >
-            Momentum
-          </button>
-          <button
-            onClick={() => setView("positions")}
-            className={`text-xs px-3 py-1.5 rounded-lg ${view === "positions" ? "bg-[#00ff85] text-[#38003c]" : "bg-white/10 text-white"}`}
-          >
-            Position History
-          </button>
-        </div>
       </div>
 
       {view === "momentum" ? (
-        <div className="space-y-6">
+        <div className="space-y-4 stagger-children">
           {(["HOT", "STEADY", "COOLING", "COLD"] as const).map((tier) => {
             const style = MOMENTUM_STYLE[tier];
-            const teams = grouped[tier];
-            if (teams.length === 0) return null;
+            const tierTeams = grouped[tier];
+            if (tierTeams.length === 0) return null;
             return (
-              <div key={tier} className={`glass rounded-xl overflow-hidden`}>
-                <div className={`px-4 py-3 border-b border-white/10 ${style.bg}`}>
-                  <h2 className={`text-sm font-bold ${style.text}`}>{style.label} — {teams.length} teams</h2>
+              <div key={tier} className="glass rounded-2xl overflow-hidden">
+                <div className={`px-4 py-3 border-b border-white/[0.06] ${style.bg}`}>
+                  <h2 className={`text-sm font-bold ${style.text} flex items-center gap-2`}>
+                    <span className="w-2 h-2 rounded-full" style={{ background: "currentColor" }} />
+                    {style.label} — {tierTeams.length} teams
+                  </h2>
                 </div>
-                <div className="divide-y divide-white/5">
-                  {teams.map((t) => (
-                    <div key={t.team_name} className="px-4 py-3 flex items-center justify-between">
+                <div className="divide-y divide-white/[0.04]">
+                  {tierTeams.map((t) => (
+                    <div key={t.team_name} className="px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 card-hover">
                       <div className="flex items-center gap-3">
-                        <span className="font-medium text-white w-48">{t.team_name}</span>
+                        <span className="font-medium text-white text-sm w-32 sm:w-48 truncate">{t.team_name}</span>
                         <div className="flex gap-1">
                           {(t.last_5_form || "").split("").map((c, i) => (
                             <FormBadge key={i} char={c} />
@@ -148,13 +164,13 @@ export default function FormPage() {
                       </div>
                       <div className="flex items-center gap-6 text-sm">
                         <div className="text-right">
-                          <span className="text-gray-400 text-xs">PPG</span>
+                          <span className="text-gray-500 text-[10px] uppercase tracking-wider">PPG</span>
                           <p className={`font-bold ${t.rolling_5_ppg >= 2.0 ? "text-green-400" : t.rolling_5_ppg >= 1.0 ? "text-yellow-400" : "text-red-400"}`}>
                             {t.rolling_5_ppg.toFixed(1)}
                           </p>
                         </div>
                         <div className="text-right">
-                          <span className="text-gray-400 text-xs">GF/GA</span>
+                          <span className="text-gray-500 text-[10px] uppercase tracking-wider">GF/GA</span>
                           <p className="text-gray-300">
                             {t.rolling_5_goals_scored.toFixed(1)} / {t.rolling_5_goals_conceded.toFixed(1)}
                           </p>
@@ -170,18 +186,18 @@ export default function FormPage() {
       ) : (
         <div className="space-y-6">
           {/* Team Selector + Version History */}
-          <div className="glass rounded-xl overflow-hidden">
-            <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
-              <h2 className="text-sm text-gray-400 uppercase tracking-wider">
+          <div className="glass rounded-2xl overflow-hidden">
+            <div className="px-4 py-3 border-b border-white/[0.06] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <h2 className="text-[11px] text-gray-500 uppercase tracking-wider font-medium">
                 SCD Type 2 — Position Version History
               </h2>
               <select
                 value={selectedTeam}
                 onChange={(e) => setSelectedTeam(e.target.value)}
-                className="bg-white/10 text-white text-sm rounded-lg px-3 py-1.5 border border-white/20"
+                className="bg-white/[0.04] text-white text-sm rounded-lg px-3 py-1.5 border border-white/[0.08] focus:border-[#00ff85]/50 focus:outline-none transition-colors"
               >
                 {teams.map((t) => (
-                  <option key={t} value={t} className="bg-[#1a1a2e]">{t}</option>
+                  <option key={t} value={t} className="bg-[#0d1117]">{t}</option>
                 ))}
               </select>
             </div>
@@ -190,75 +206,77 @@ export default function FormPage() {
                 {selectedTeam} has <span className="text-white font-bold">{teamHistory.length} versions</span> this season
                 — position changed {teamHistory.length - 1} times across {teamHistory.length > 0 ? teamHistory[teamHistory.length - 1].valid_to_matchday : 0} matchdays
               </p>
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-gray-400 text-xs uppercase border-b border-white/10">
-                    <th className="text-left py-2 px-2">Position</th>
-                    <th className="text-left py-2 px-2">From GW</th>
-                    <th className="text-left py-2 px-2">To GW</th>
-                    <th className="text-center py-2 px-2">Held</th>
-                    <th className="text-right py-2 px-2">Points</th>
-                    <th className="text-center py-2 px-2">Movement</th>
-                    <th className="text-center py-2 px-2">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/5">
-                  {teamHistory.map((v, i) => (
-                    <tr key={i} className={v.is_current ? "bg-[#00ff85]/5" : ""}>
-                      <td className="py-2.5 px-2">
-                        <span className="text-white font-bold text-lg">#{v.position}</span>
-                      </td>
-                      <td className="py-2.5 px-2 text-gray-300">GW{v.valid_from_matchday}</td>
-                      <td className="py-2.5 px-2 text-gray-300">GW{v.valid_to_matchday}</td>
-                      <td className="py-2.5 px-2 text-center">
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${
-                          v.matchdays_held >= 10 ? "bg-green-500/20 text-green-400" :
-                          v.matchdays_held >= 5 ? "bg-yellow-500/20 text-yellow-400" :
-                          "bg-white/10 text-gray-400"
-                        }`}>
-                          {v.matchdays_held} GW{v.matchdays_held !== 1 ? "s" : ""}
-                        </span>
-                      </td>
-                      <td className="py-2.5 px-2 text-right text-gray-300">{v.points}</td>
-                      <td className="py-2.5 px-2 text-center">
-                        {v.movement === "UP" && <span className="text-green-400 font-bold">▲ {v.prev_position ? v.prev_position - v.position : 0}</span>}
-                        {v.movement === "DOWN" && <span className="text-red-400 font-bold">▼ {v.prev_position ? v.position - v.prev_position : 0}</span>}
-                        {v.movement === "NEW" && <span className="text-blue-400 text-xs">NEW</span>}
-                        {v.movement === "SAME" && <span className="text-gray-500">—</span>}
-                      </td>
-                      <td className="py-2.5 px-2 text-center">
-                        {v.is_current && <span className="text-xs bg-[#00ff85]/20 text-[#00ff85] px-2 py-0.5 rounded-full">CURRENT</span>}
-                      </td>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-gray-500 text-[11px] uppercase border-b border-white/[0.06]">
+                      <th className="text-left py-2 px-2">Position</th>
+                      <th className="text-left py-2 px-2">From GW</th>
+                      <th className="text-left py-2 px-2">To GW</th>
+                      <th className="text-center py-2 px-2">Held</th>
+                      <th className="text-right py-2 px-2">Points</th>
+                      <th className="text-center py-2 px-2">Movement</th>
+                      <th className="text-center py-2 px-2">Status</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-white/[0.04]">
+                    {teamHistory.map((v, i) => (
+                      <tr key={i} className={v.is_current ? "bg-[#00ff85]/[0.03]" : ""}>
+                        <td className="py-2.5 px-2">
+                          <span className="text-white font-bold text-lg">#{v.position}</span>
+                        </td>
+                        <td className="py-2.5 px-2 text-gray-400">GW{v.valid_from_matchday}</td>
+                        <td className="py-2.5 px-2 text-gray-400">GW{v.valid_to_matchday}</td>
+                        <td className="py-2.5 px-2 text-center">
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${
+                            v.matchdays_held >= 10 ? "bg-green-500/10 text-green-400" :
+                            v.matchdays_held >= 5 ? "bg-yellow-500/10 text-yellow-400" :
+                            "bg-white/[0.04] text-gray-500"
+                          }`}>
+                            {v.matchdays_held} GW{v.matchdays_held !== 1 ? "s" : ""}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-2 text-right text-gray-400">{v.points}</td>
+                        <td className="py-2.5 px-2 text-center">
+                          {v.movement === "UP" && <span className="text-green-400 font-bold">&#9650; {v.prev_position ? v.prev_position - v.position : 0}</span>}
+                          {v.movement === "DOWN" && <span className="text-red-400 font-bold">&#9660; {v.prev_position ? v.position - v.prev_position : 0}</span>}
+                          {v.movement === "NEW" && <span className="text-blue-400 text-xs font-medium">NEW</span>}
+                          {v.movement === "SAME" && <span className="text-gray-600">--</span>}
+                        </td>
+                        <td className="py-2.5 px-2 text-center">
+                          {v.is_current && <span className="text-xs bg-[#00ff85]/10 text-[#00ff85] px-2 py-0.5 rounded-full font-medium">CURRENT</span>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
 
           {/* Season Movers Summary */}
-          <div className="glass rounded-xl overflow-hidden">
-            <div className="px-4 py-3 border-b border-white/10">
-              <h2 className="text-sm text-gray-400 uppercase tracking-wider">
+          <div className="glass rounded-2xl overflow-hidden">
+            <div className="px-4 py-3 border-b border-white/[0.06]">
+              <h2 className="text-[11px] text-gray-500 uppercase tracking-wider font-medium">
                 Season Movers — Start vs Current Position
               </h2>
             </div>
-            <div className="divide-y divide-white/5">
+            <div className="divide-y divide-white/[0.04]">
               {movers.map((m) => (
-                <div key={m.team} className="px-4 py-3 flex items-center justify-between">
+                <div key={m.team} className="px-4 py-3 flex items-center justify-between card-hover">
                   <div className="flex items-center gap-3">
-                    <span className="text-white font-bold w-8 text-right">#{m.current}</span>
-                    <span className="font-medium text-white w-48">{m.team}</span>
+                    <span className="text-white font-bold w-8 text-right tabular-nums">#{m.current}</span>
+                    <span className="font-medium text-white text-sm w-32 sm:w-48 truncate">{m.team}</span>
                   </div>
-                  <div className="flex items-center gap-4">
-                    <span className="text-gray-400 text-sm">{m.points} pts</span>
-                    <span className="text-gray-500 text-xs">started #{m.start}</span>
-                    <span className="text-gray-500 text-xs">{m.versions} versions</span>
-                    <span className={`font-bold text-sm min-w-[50px] text-right ${
+                  <div className="flex items-center gap-3 sm:gap-4 text-sm">
+                    <span className="text-gray-400 tabular-nums">{m.points} pts</span>
+                    <span className="text-gray-600 text-xs hidden sm:inline">started #{m.start}</span>
+                    <span className="text-gray-600 text-xs hidden sm:inline">{m.versions} ver</span>
+                    <span className={`font-bold text-sm min-w-[50px] text-right tabular-nums ${
                       m.change > 0 ? "text-green-400" :
-                      m.change < 0 ? "text-red-400" : "text-gray-500"
+                      m.change < 0 ? "text-red-400" : "text-gray-600"
                     }`}>
-                      {m.change > 0 ? `▲ ${m.change}` : m.change < 0 ? `▼ ${Math.abs(m.change)}` : "—"}
+                      {m.change > 0 ? `+${m.change}` : m.change < 0 ? `${m.change}` : "--"}
                     </span>
                   </div>
                 </div>

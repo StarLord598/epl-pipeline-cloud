@@ -78,13 +78,15 @@ export default function StatsPage() {
   const colors = TEAM_COLORS[selected[0]]?.primary || "#00ff85";
 
   return (
-    <div>
-      <div className="mb-6">
-        <div className="flex items-center gap-3 mb-2">
-          <span className="text-3xl">📊</span>
+    <div className="animate-fade-in-up">
+      <div className="page-header">
+        <div className="flex items-center gap-4 mb-1">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+            <span className="text-2xl">&#128202;</span>
+          </div>
           <div>
-            <h1 className="text-2xl font-bold text-white">Season Statistics</h1>
-            <p className="text-gray-400 text-sm">2025-26 · Team Performance Analysis</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-white">Season Statistics</h1>
+            <p className="text-gray-400 text-sm mt-0.5">2025-26 · Team Performance Analysis</p>
           </div>
         </div>
         <DataSourceBadge
@@ -103,10 +105,10 @@ export default function StatsPage() {
             <button
               key={t.team_id}
               onClick={() => toggleTeam(t.team_name)}
-              className={`px-3 py-1 rounded-full text-xs font-medium transition-all border ${
-                active ? "text-white" : "bg-transparent text-gray-400 border-white/10 hover:border-white/30"
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 border ${
+                active ? "text-white shadow-sm" : "bg-transparent text-gray-500 border-white/[0.06] hover:border-white/[0.15]"
               }`}
-              style={active ? { background: color, borderColor: color } : undefined}
+              style={active ? { background: `${color}20`, borderColor: color, color } : undefined}
             >
               {t.team_name.split(" ")[0]}
             </button>
@@ -114,49 +116,46 @@ export default function StatsPage() {
         })}
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-6">
+      <div className="grid lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Radar chart */}
-        <div className="glass rounded-xl p-4">
-          <h2 className="text-sm text-gray-400 uppercase tracking-wider mb-4">
+        <div className="glass rounded-2xl p-4 sm:p-5">
+          <h2 className="text-[11px] text-gray-500 uppercase tracking-wider mb-4 font-medium">
             Team Profile — {selected[0]}
           </h2>
           <ResponsiveContainer width="100%" height={280}>
             <RadarChart data={radarData}>
-              <PolarGrid stroke="rgba(255,255,255,0.1)" />
-              <PolarAngleAxis
-                dataKey="metric"
-                tick={{ fill: "#9ca3af", fontSize: 11 }}
-              />
+              <PolarGrid stroke="rgba(255,255,255,0.06)" />
+              <PolarAngleAxis dataKey="metric" tick={{ fill: "#666", fontSize: 11 }} />
               <Radar
                 name={selected[0]}
                 dataKey="value"
                 stroke={colors}
                 fill={colors}
-                fillOpacity={0.25}
+                fillOpacity={0.15}
                 strokeWidth={2}
               />
             </RadarChart>
           </ResponsiveContainer>
-          <p className="text-gray-500 text-xs text-center">Normalized 0-100 vs league best</p>
+          <p className="text-gray-600 text-[11px] text-center mt-2">Normalized 0-100 vs league best</p>
         </div>
 
         {/* Points comparison */}
-        <div className="glass rounded-xl p-4">
-          <h2 className="text-sm text-gray-400 uppercase tracking-wider mb-4">
+        <div className="glass rounded-2xl p-4 sm:p-5">
+          <h2 className="text-[11px] text-gray-500 uppercase tracking-wider mb-4 font-medium">
             Points Tally — All Teams
           </h2>
           <ResponsiveContainer width="100%" height={280}>
             <BarChart data={teams} layout="vertical">
-              <XAxis type="number" tick={{ fill: "#9ca3af", fontSize: 10 }} />
+              <XAxis type="number" tick={{ fill: "#666", fontSize: 10 }} />
               <YAxis
                 type="category"
                 dataKey="team_name"
-                tick={{ fill: "#e5e7eb", fontSize: 9 }}
+                tick={{ fill: "#888", fontSize: 9 }}
                 width={120}
                 tickFormatter={(v: string) => v.split(" ").slice(-1)[0]}
               />
               <Tooltip
-                contentStyle={{ background: "#1a1a2e", border: "1px solid rgba(255,255,255,0.1)", color: "#fff" }}
+                contentStyle={{ background: "rgba(13, 17, 23, 0.95)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "12px", color: "#fff" }}
                 formatter={(v: number | undefined) => [v ?? 0, "Points"]}
               />
               <Bar dataKey="points" fill="#00ff85" radius={[0, 4, 4, 0]} />
@@ -165,19 +164,19 @@ export default function StatsPage() {
         </div>
 
         {/* Goals for vs against */}
-        <div className="glass rounded-xl p-4 lg:col-span-2">
-          <h2 className="text-sm text-gray-400 uppercase tracking-wider mb-4">
+        <div className="glass rounded-2xl p-4 sm:p-5 lg:col-span-2">
+          <h2 className="text-[11px] text-gray-500 uppercase tracking-wider mb-4 font-medium">
             Goals Scored vs Conceded — All Teams
           </h2>
           <ResponsiveContainer width="100%" height={280}>
             <BarChart data={goalData}>
-              <XAxis dataKey="name" tick={{ fill: "#9ca3af", fontSize: 10 }} />
-              <YAxis tick={{ fill: "#9ca3af", fontSize: 10 }} />
+              <XAxis dataKey="name" tick={{ fill: "#666", fontSize: 10 }} />
+              <YAxis tick={{ fill: "#666", fontSize: 10 }} />
               <Tooltip
                 labelFormatter={(v, payload) => payload?.[0]?.payload?.fullName || v}
-                contentStyle={{ background: "#1a1a2e", border: "1px solid rgba(255,255,255,0.1)", color: "#fff" }}
+                contentStyle={{ background: "rgba(13, 17, 23, 0.95)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "12px", color: "#fff" }}
               />
-              <Legend wrapperStyle={{ color: "#9ca3af" }} />
+              <Legend wrapperStyle={{ color: "#666", fontSize: 12 }} />
               <Bar dataKey="goalsFor" name="Goals For" fill="#22c55e" radius={[4, 4, 0, 0]} />
               <Bar dataKey="goalsAgainst" name="Goals Against" fill="#ef4444" radius={[4, 4, 0, 0]} />
             </BarChart>
@@ -186,17 +185,16 @@ export default function StatsPage() {
       </div>
 
       {/* Season highlights */}
-      <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 stagger-children">
         {[
-          { icon: "⚽", label: "Total Goals", value: teams.reduce((s, t) => s + t.goals_for, 0) },
-          { icon: "🎮", label: "Total Matches", value: teams.reduce((s, t) => s + t.played, 0) / 2 },
-          { icon: "📈", label: "Avg Goals/Game", value: (teams.reduce((s, t) => s + t.goals_for, 0) / (teams.reduce((s, t) => s + t.played, 0) / 2)).toFixed(2) },
-          { icon: "🏆", label: "Leader", value: teams[0]?.team_name ?? "—" },
+          { label: "Total Goals", value: teams.reduce((s, t) => s + t.goals_for, 0), color: "#00ff85" },
+          { label: "Total Matches", value: teams.reduce((s, t) => s + t.played, 0) / 2, color: "#fff" },
+          { label: "Avg Goals/Game", value: (teams.reduce((s, t) => s + t.goals_for, 0) / (teams.reduce((s, t) => s + t.played, 0) / 2)).toFixed(2), color: "#00c8ff" },
+          { label: "Leader", value: teams[0]?.team_name ?? "--", color: "#FFD700" },
         ].map((stat) => (
-          <div key={stat.label} className="glass rounded-xl p-4 text-center">
-            <div className="text-2xl mb-2">{stat.icon}</div>
-            <div className="text-xl font-black text-white">{stat.value}</div>
-            <div className="text-gray-400 text-xs mt-1">{stat.label}</div>
+          <div key={stat.label} className="glass rounded-xl p-4 text-center glass-hover">
+            <div className="text-xl font-black tabular-nums" style={{ color: stat.color }}>{stat.value}</div>
+            <div className="text-gray-500 text-[11px] mt-1 uppercase tracking-wider">{stat.label}</div>
           </div>
         ))}
       </div>

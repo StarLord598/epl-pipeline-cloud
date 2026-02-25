@@ -74,19 +74,32 @@ export default function QualityPage() {
     fetch("/data/quality.json").then((r) => r.json()).then(setData);
   }, []);
 
-  if (!data) return <div className="text-gray-400">Loading quality data...</div>;
+  if (!data) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 rounded-full border-2 border-[#00ff85]/30 border-t-[#00ff85] animate-spin" />
+          <span className="text-gray-500 text-sm">Loading quality data...</span>
+        </div>
+      </div>
+    );
+  }
 
   const passRate = data.tests.total > 0 ? ((data.tests.passed / data.tests.total) * 100).toFixed(0) : "N/A";
 
   return (
-    <div>
-      <div className="flex items-center gap-3 mb-6">
-        <span className="text-3xl">🛡️</span>
-        <div>
-          <h1 className="text-2xl font-bold text-white">Data Quality</h1>
-          <p className="text-gray-400 text-sm">
-            Pipeline health · Test coverage · Data freshness
-          </p>
+    <div className="animate-fade-in-up">
+      <div className="page-header">
+        <div className="flex items-center gap-4 mb-1">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+            <span className="text-2xl">🛡️</span>
+          </div>
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-white">Data Quality</h1>
+            <p className="text-gray-400 text-sm mt-0.5">
+              Pipeline health · Test coverage · Data freshness
+            </p>
+          </div>
         </div>
         <DataSourceBadge
           pattern="Data Observability"
@@ -97,19 +110,19 @@ export default function QualityPage() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div className="glass rounded-xl p-4 text-center">
+        <div className="glass rounded-2xl p-4 text-center">
           <p className="text-3xl font-black text-[#00ff85]">{passRate}%</p>
           <p className="text-xs text-gray-400 mt-1">Test Pass Rate</p>
         </div>
-        <div className="glass rounded-xl p-4 text-center">
+        <div className="glass rounded-2xl p-4 text-center">
           <p className="text-3xl font-black text-white">{data.tests.total}</p>
           <p className="text-xs text-gray-400 mt-1">Data Tests</p>
         </div>
-        <div className="glass rounded-xl p-4 text-center">
+        <div className="glass rounded-2xl p-4 text-center">
           <p className="text-3xl font-black text-white">{data.summary.total_tables}</p>
           <p className="text-xs text-gray-400 mt-1">Tables & Views</p>
         </div>
-        <div className="glass rounded-xl p-4 text-center">
+        <div className="glass rounded-2xl p-4 text-center">
           <p className="text-3xl font-black text-white">{data.summary.total_rows.toLocaleString()}</p>
           <p className="text-xs text-gray-400 mt-1">Total Rows</p>
         </div>
@@ -122,7 +135,7 @@ export default function QualityPage() {
           { layer: "Silver", count: data.summary.silver_tables, color: "text-gray-300", icon: "🥈" },
           { layer: "Gold", count: data.summary.gold_tables, color: "text-yellow-400", icon: "🥇" },
         ].map((l) => (
-          <div key={l.layer} className="glass rounded-xl p-4">
+          <div key={l.layer} className="glass rounded-2xl p-4">
             <div className="flex items-center gap-2 mb-2">
               <span>{l.icon}</span>
               <h3 className={`font-bold ${l.color}`}>{l.layer}</h3>
@@ -135,7 +148,7 @@ export default function QualityPage() {
 
       {/* Freshness */}
       {data.freshness.length > 0 && (
-        <div className="glass rounded-xl mb-6 overflow-hidden">
+        <div className="glass rounded-2xl mb-6 overflow-hidden">
           <div className="px-4 py-3 border-b border-white/10">
             <h2 className="text-sm text-gray-400 uppercase tracking-wider">Data Freshness</h2>
           </div>
@@ -151,7 +164,7 @@ export default function QualityPage() {
       )}
 
       {/* Test Results */}
-      <div className="glass rounded-xl mb-6 overflow-hidden">
+      <div className="glass rounded-2xl mb-6 overflow-hidden">
         <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
           <h2 className="text-sm text-gray-400 uppercase tracking-wider">dbt Test Results</h2>
           <div className="flex gap-3 text-xs">
@@ -174,7 +187,7 @@ export default function QualityPage() {
       </div>
 
       {/* Table Inventory */}
-      <div className="glass rounded-xl overflow-hidden">
+      <div className="glass rounded-2xl overflow-hidden">
         <div className="px-4 py-3 border-b border-white/10">
           <h2 className="text-sm text-gray-400 uppercase tracking-wider">Table Inventory</h2>
         </div>

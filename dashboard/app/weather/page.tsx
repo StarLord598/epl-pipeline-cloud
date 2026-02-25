@@ -61,30 +61,37 @@ export default function WeatherPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-        <div className="text-white text-xl animate-pulse">Loading weather data...</div>
+      <div className="flex items-center justify-center py-20">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 rounded-full border-2 border-[#00ff85]/30 border-t-[#00ff85] animate-spin" />
+          <span className="text-gray-500 text-sm">Loading weather data...</span>
+        </div>
       </div>
     );
   }
 
   if (data.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
+      <div className="flex items-center justify-center py-20">
         <div className="text-gray-400 text-lg">No weather data available. Run the weather ingestion pipeline first.</div>
       </div>
     );
   }
 
   return (
-    <main className="min-h-screen bg-gray-950 text-white">
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">
-            🌤️ Stadium Weather Conditions
-          </h1>
-          <p className="text-gray-400">
-            Real-time weather at all 20 EPL stadiums via Open-Meteo API
-          </p>
+    <div className="animate-fade-in-up">
+        <div className="page-header">
+          <div className="flex items-center gap-4 mb-1">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-sky-400 to-blue-500 flex items-center justify-center shadow-lg shadow-sky-500/20">
+              <span className="text-2xl">🌤️</span>
+            </div>
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-white">Stadium Weather</h1>
+              <p className="text-gray-400 text-sm mt-0.5">
+                Real-time weather at all 20 EPL stadiums via Open-Meteo API
+              </p>
+            </div>
+          </div>
           <DataSourceBadge
             pattern="Near Real-Time Polling"
             source="Gold: mart_stadium_weather → stg_stadium_weather → raw.stadium_weather"
@@ -99,25 +106,25 @@ export default function WeatherPage() {
 
         {/* Summary stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-gray-900 rounded-lg p-4 border border-gray-800">
+          <div className="glass rounded-2xl p-4">
             <div className="text-2xl font-bold text-[#00ff85]">
               {data.filter(d => d.pitch_condition === "Excellent" || d.pitch_condition === "Good").length}
             </div>
             <div className="text-gray-400 text-sm">Good Conditions</div>
           </div>
-          <div className="bg-gray-900 rounded-lg p-4 border border-gray-800">
+          <div className="glass rounded-2xl p-4">
             <div className="text-2xl font-bold text-yellow-400">
               {data.filter(d => d.pitch_condition?.includes("Moderate")).length}
             </div>
             <div className="text-gray-400 text-sm">Moderate</div>
           </div>
-          <div className="bg-gray-900 rounded-lg p-4 border border-gray-800">
+          <div className="glass rounded-2xl p-4">
             <div className="text-2xl font-bold text-blue-400">
               {data.filter(d => d.pitch_condition?.includes("Poor")).length}
             </div>
             <div className="text-gray-400 text-sm">Poor Conditions</div>
           </div>
-          <div className="bg-gray-900 rounded-lg p-4 border border-gray-800">
+          <div className="glass rounded-2xl p-4">
             <div className="text-2xl font-bold text-white">
               {data.length > 0
                 ? ((data.reduce((sum, d) => sum + (d.temperature_c ?? 0), 0) / data.length) * 9/5 + 32).toFixed(1)
@@ -133,7 +140,7 @@ export default function WeatherPage() {
           {data.map((stadium) => (
             <div
               key={stadium.team_name}
-              className={`rounded-lg p-4 border-2 transition-all hover:scale-[1.02] ${pitchColor(stadium.pitch_condition)}`}
+              className={`rounded-2xl p-4 border glass transition-all hover:scale-[1.02] ${pitchColor(stadium.pitch_condition)}`}
             >
               {/* Header */}
               <div className="flex items-center justify-between mb-3">
@@ -196,7 +203,6 @@ export default function WeatherPage() {
             </div>
           ))}
         </div>
-      </div>
-    </main>
+    </div>
   );
 }

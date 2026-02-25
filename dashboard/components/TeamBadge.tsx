@@ -13,7 +13,7 @@ export default function TeamBadge({ teamName, size = "md", showName = false }: T
   const abbr = getTeamShort(teamName);
 
   const sizeClasses = {
-    sm: "w-7 h-7 text-xs",
+    sm: "w-7 h-7 text-[10px]",
     md: "w-9 h-9 text-xs",
     lg: "w-12 h-12 text-sm",
   };
@@ -21,8 +21,12 @@ export default function TeamBadge({ teamName, size = "md", showName = false }: T
   return (
     <div className="flex items-center gap-2">
       <div
-        className={`${sizeClasses[size]} rounded-full flex items-center justify-center font-black flex-shrink-0`}
-        style={{ background: colors.primary, color: colors.text }}
+        className={`${sizeClasses[size]} rounded-lg flex items-center justify-center font-black flex-shrink-0 shadow-lg transition-transform duration-200 hover:scale-105`}
+        style={{
+          background: `linear-gradient(135deg, ${colors.primary}, ${colors.primary}cc)`,
+          color: colors.text,
+          boxShadow: `0 2px 8px ${colors.primary}40`,
+        }}
       >
         {abbr}
       </div>
