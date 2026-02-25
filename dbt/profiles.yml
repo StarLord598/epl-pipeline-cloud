@@ -17,3 +17,14 @@ epl_pipeline:
       work_group: "{{ env_var('ATHENA_WORKGROUP', 'epl-pipeline-dev') }}"
       threads: 4
       num_retries: 3
+
+    redshift:
+      type: redshift
+      host: "{{ env_var('REDSHIFT_HOST') }}"
+      port: 5439
+      dbname: dev
+      schema: mart
+      user: "{{ env_var('REDSHIFT_USER', 'admin') }}"
+      password: "{{ env_var('REDSHIFT_PASSWORD') }}"
+      threads: 4
+      connect_timeout: 30

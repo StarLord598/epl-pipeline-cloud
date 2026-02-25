@@ -55,3 +55,6 @@ lambda/*/*.zip
 # Dashboard data (generated from pipeline)
 dashboard/public/data/*.json
 !dashboard/public/data/.gitkeep
+
+# Build artifacts
+.build/
