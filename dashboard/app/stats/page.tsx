@@ -90,9 +90,9 @@ export default function StatsPage() {
           </div>
         </div>
         <DataSourceBadge
-          pattern="Kimball Dimension"
-          source="AWS Lambda → S3 → Glue Catalog (dim_teams + fact tables) → Athena cross-metric joins"
-          explanation="Kimball dimension modeling on AWS — dim_teams in Glue Catalog classifies all 20 teams into tiers (Title Contender, European, Mid-table, Relegation Zone) with conformed attributes. Athena queries join multiple fact tables through this shared dimension on S3, enabling cross-metric radar comparisons. All data lands in S3 via Lambda, cataloged by Glue, and served through API Gateway + CloudFront."
+          pattern="Conformed Dimension (Kimball)"
+          source="Gold: dim_teams (conformed) + mart_live_league_table (fact) — multi-fact join"
+          explanation="Conformed dimension modeling — dim_teams is a shared dimension across all fact tables, classifying teams into tiers (Title Contender, European, Mid-table, Relegation Zone) with stable surrogate keys and descriptive attributes. Radar charts join multiple fact tables through this single conformed dimension, enabling cross-metric comparisons without fan traps. This is the Kimball bus architecture in action. Runs on AWS: S3 → Glue Catalog → Athena multi-table joins."
         />
       </div>
 

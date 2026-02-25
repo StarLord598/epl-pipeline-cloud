@@ -69,9 +69,9 @@ export default async function LeagueTablePage() {
           </div>
         </div>
         <DataSourceBadge
-          pattern="Fact Table"
-          source="AWS Lambda (daily_ingest) → S3 Data Lake (Parquet) → Glue Catalog → Athena → API Gateway + CloudFront"
-          explanation="Aggregated fact table built on AWS. Lambda ingests from football-data.org API on an EventBridge cron schedule, writes Parquet to S3 data lake (partitioned by date). Glue Data Catalog registers schemas for Athena SQL queries. Data flows through a medallion architecture: Bronze (raw S3) → Silver (deduplicated) → Gold (enriched with win rate, PPG, points %). Served via API Gateway + CloudFront CDN to this Next.js dashboard running on ECS Fargate."
+          pattern="Fact Table (Kimball)"
+          source="Gold: mart_live_league_table → stg_live_standings → raw.live_standings"
+          explanation="Aggregated fact table following Kimball methodology. Raw API snapshots land in the Bronze layer (append-only) on S3, are deduplicated in Silver via ROW_NUMBER() OVER (PARTITION BY team_name ORDER BY ingested_at DESC), then enriched in Gold with derived metrics (win rate, PPG, points %). Full medallion architecture: Bronze → Silver → Gold. Runs on AWS: Lambda ingests on EventBridge schedule → S3 data lake (Parquet) → Glue Catalog → Athena SQL → API Gateway + CloudFront → ECS Fargate dashboard."
         />
       </div>
 

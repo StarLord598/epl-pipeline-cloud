@@ -315,9 +315,9 @@ export default function LivePage() {
           )}
         </div>
         <DataSourceBadge
-          pattern="Real-Time Ingestion"
-          source="AWS Lambda (live_matches) → S3 Data Lake → Glue Catalog → Athena → API Gateway + CloudFront"
-          explanation="CDC-like pattern on AWS — Lambda polls football-data.org API every 15 min on matchdays via EventBridge scheduled rule. Each poll writes to S3 data lake as append-only Parquet (Bronze layer). Silver layer deduplicates via ROW_NUMBER() PARTITION BY match_id in Athena. Step Functions orchestrates the full pipeline. Non-matchday invocations short-circuit to conserve API quota and Lambda costs."
+          pattern="Transaction Fact (CDC Pattern)"
+          source="Gold: mart_live_matches → stg_live_matches → raw.live_matches"
+          explanation="Transaction fact table with CDC-like ingestion. Each API poll creates a new transaction record (append-only Bronze layer). Silver deduplicates via ROW_NUMBER() PARTITION BY match_id ORDER BY ingested_at DESC — keeping only the latest state per match (Type 1 SCD behavior). Enables both current-state queries and historical audit trail. Runs on AWS: Lambda polls every 15 min via EventBridge → S3 append-only → Athena dedup → Step Functions orchestration."
         />
       </div>
 

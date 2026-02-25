@@ -114,9 +114,9 @@ export default function RacePage() {
           </button>
         </div>
         <DataSourceBadge
-          pattern="Cumulative Metric"
-          source="AWS Lambda (daily_ingest) → S3 Data Lake → Athena SQL → API Gateway → CloudFront CDN"
-          explanation="Running total pattern — Lambda ingests match results to S3 (Parquet), Athena computes cumulative points per team per matchday using SUM() OVER (PARTITION BY team ORDER BY matchday). Orchestrated by AWS Step Functions on an EventBridge daily schedule. Served to the dashboard via API Gateway + CloudFront, running on ECS Fargate."
+          pattern="Accumulating Snapshot Fact"
+          source="Gold: mart_points_race → stg_live_matches → raw.live_matches"
+          explanation="Accumulating snapshot pattern — each row captures cumulative state at a point in time. Points per team per matchday computed via SUM() OVER (PARTITION BY team ORDER BY matchday). Unlike a transaction fact (one row per event), this stores running totals that grow each gameweek — classic accumulating snapshot for time-series analysis. Runs on AWS: Lambda → S3 (Parquet) → Athena window functions → API Gateway + CloudFront."
         />
       </div>
 

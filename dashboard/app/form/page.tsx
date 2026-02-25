@@ -132,8 +132,8 @@ export default function FormPage() {
         </div>
         <DataSourceBadge
           pattern="Rolling Window + SCD Type 2"
-          source="AWS Lambda → S3 Data Lake (Parquet) → Athena (window functions) → API Gateway + CloudFront"
-          explanation="Two advanced analytics patterns running on AWS: (1) Rolling Window — Athena computes AVG(points) OVER (ROWS BETWEEN 4 PRECEDING AND CURRENT ROW) on S3 data for 5-game PPG, classifying HOT/STEADY/COOLING/COLD. (2) SCD Type 2 — tracks every position change with valid_from/valid_to for point-in-time queries. Data ingested by Lambda on EventBridge schedule, stored in S3 data lake, cataloged in Glue, queried via Athena. Dashboard served on ECS Fargate behind CloudFront CDN."
+          source="Gold: mart_rolling_form (window fn) + mart_scd2_standings (slowly changing dimension)"
+          explanation="Two warehouse patterns: (1) Rolling Window — AVG(points) OVER (ROWS BETWEEN 4 PRECEDING AND CURRENT ROW) computes 5-game PPG, classifying teams as HOT/STEADY/COOLING/COLD. (2) SCD Type 2 — tracks every league position change with valid_from/valid_to/is_current columns for point-in-time queries ('Where was Arsenal on Matchday 20?'). Only creates new version rows when position actually changes — consecutive matchdays at the same position collapse into one record. Runs on AWS: Lambda → S3 → Athena window functions."
         />
       </div>
 
