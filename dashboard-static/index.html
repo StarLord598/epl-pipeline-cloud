@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EPL Pipeline Dashboard — Cloud</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; }
+        .header { background: linear-gradient(135deg, #1e293b 0%, #334155 100%); padding: 24px 32px; border-bottom: 2px solid #3b0764; }
+        .header h1 { font-size: 28px; font-weight: 700; color: #f8fafc; }
+        .header h1 span { color: #a855f7; }
+        .header p { color: #94a3b8; margin-top: 4px; font-size: 14px; }
+        .status-bar { display: flex; gap: 16px; margin-top: 12px; flex-wrap: wrap; }
+        .status-badge { padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+        .status-healthy { background: #065f46; color: #6ee7b7; }
+        .status-info { background: #1e3a5f; color: #93c5fd; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 24px; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 24px; }
+        @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
+        .card { background: #1e293b; border-radius: 12px; border: 1px solid #334155; overflow: hidden; }
+        .card-header { padding: 16px 20px; border-bottom: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; }
+        .card-header h2 { font-size: 18px; font-weight: 600; }
+        .card-body { padding: 0; }
+        .full-width { grid-column: 1 / -1; }
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; padding: 10px 16px; color: #94a3b8; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; background: #0f172a; font-weight: 600; }
+        td { padding: 10px 16px; border-top: 1px solid #1e293b; font-size: 14px; }
+        tr:hover td { background: #1e293b; }
+        .pos { font-weight: 700; width: 40px; text-align: center; }
+        .pos-1, .pos-2, .pos-3, .pos-4 { color: #60a5fa; }
+        .pos-5, .pos-6, .pos-7 { color: #f59e0b; }
+        .pos-18, .pos-19, .pos-20 { color: #ef4444; }
+        .team-name { font-weight: 600; color: #f8fafc; }
+        .crest { width: 20px; height: 20px; vertical-align: middle; margin-right: 8px; }
+        .points { font-weight: 700; color: #a855f7; font-size: 16px; }
+        .form { display: flex; gap: 3px; }
+        .form span { width: 20px; height: 20px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; }
+        .form-W { background: #065f46; color: #6ee7b7; }
+        .form-D { background: #78350f; color: #fcd34d; }
+        .form-L { background: #7f1d1d; color: #fca5a5; }
+        .goals { color: #94a3b8; }
+        .goals-for { color: #6ee7b7; font-weight: 600; }
+        .scorer-goals { font-weight: 700; color: #fbbf24; font-size: 16px; }
+        .match-score { font-weight: 700; font-size: 15px; text-align: center; min-width: 50px; }
+        .match-home { text-align: right; }
+        .match-date { color: #64748b; font-size: 12px; }
+        .loading { padding: 40px; text-align: center; color: #64748b; }
+        .error { padding: 20px; color: #fca5a5; text-align: center; }
+        .footer { text-align: center; padding: 32px; color: #475569; font-size: 13px; }
+        .footer a { color: #a855f7; text-decoration: none; }
+        .tab-bar { display: flex; border-bottom: 1px solid #334155; }
+        .tab { padding: 10px 20px; cursor: pointer; color: #94a3b8; font-size: 14px; font-weight: 500; border-bottom: 2px solid transparent; transition: all 0.2s; }
+        .tab.active { color: #a855f7; border-bottom-color: #a855f7; }
+        .tab:hover { color: #e2e8f0; }
+        .gd-pos { color: #6ee7b7; }
+        .gd-neg { color: #fca5a5; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>⚽ EPL Pipeline <span>Dashboard</span></h1>
+        <p>AWS Cloud — Real-time Premier League 2025/26 data pipeline</p>
+        <div class="status-bar">
+            <span class="status-badge status-healthy" id="health-badge">● Checking...</span>
+            <span class="status-badge status-info">☁️ AWS Lambda + S3 + CloudFront</span>
+            <span class="status-badge status-info" id="last-updated">Last updated: —</span>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="grid">
+            <!-- League Table -->
+            <div class="card full-width">
+                <div class="card-header">
+                    <h2>🏆 Premier League Table</h2>
+                    <span style="color:#64748b;font-size:13px">Matchday 27</span>
+                </div>
+                <div class="card-body" id="standings-table">
+                    <div class="loading">Loading standings...</div>
+                </div>
+            </div>
+
+            <!-- Top Scorers -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>⚽ Golden Boot Race</h2>
+                </div>
+                <div class="card-body" id="scorers-table">
+                    <div class="loading">Loading scorers...</div>
+                </div>
+            </div>
+
+            <!-- Recent Results -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>📋 Recent Results</h2>
+                </div>
+                <div class="card-body" id="results-table">
+                    <div class="loading">Loading results...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <p>Data sourced from <a href="https://www.football-data.org">football-data.org</a> via AWS Lambda → S3 → CloudFront</p>
+        <p style="margin-top:8px">Built with Terraform • <a href="https://github.com/StarLord598/epl-pipeline-cloud">View on GitHub</a></p>
+    </div>
+
+    <script>
+        const API = 'https://dr81mm57l8sab.cloudfront.net';
+
+        function renderForm(form) {
+            if (!form) return '';
+            return '<div class="form">' + form.split(',').map(f => 
+                `<span class="form-${f.trim()}">${f.trim()}</span>`
+            ).join('') + '</div>';
+        }
+
+        async function loadStandings() {
+            try {
+                const res = await fetch(`${API}/standings`);
+                const json = await res.json();
+                const standings = json.data?.standings?.[0]?.table || [];
+                
+                let html = `<table>
+                    <thead><tr><th>#</th><th>Team</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GF</th><th>GA</th><th>GD</th><th>Pts</th><th>Form</th></tr></thead>
+                    <tbody>`;
+                
+                standings.forEach(t => {
+                    const gd = t.goalDifference;
+                    const gdClass = gd > 0 ? 'gd-pos' : gd < 0 ? 'gd-neg' : '';
+                    html += `<tr>
+                        <td class="pos pos-${t.position}">${t.position}</td>
+                        <td class="team-name"><img class="crest" src="${t.team.crest}" alt="">${t.team.name}</td>
+                        <td>${t.playedGames}</td>
+                        <td>${t.won}</td>
+                        <td>${t.draw}</td>
+                        <td>${t.lost}</td>
+                        <td class="goals-for">${t.goalsFor}</td>
+                        <td class="goals">${t.goalsAgainst}</td>
+                        <td class="${gdClass}">${gd > 0 ? '+' : ''}${gd}</td>
+                        <td class="points">${t.points}</td>
+                        <td>${renderForm(t.form)}</td>
+                    </tr>`;
+                });
+                html += '</tbody></table>';
+                document.getElementById('standings-table').innerHTML = html;
+            } catch (e) {
+                document.getElementById('standings-table').innerHTML = '<div class="error">Failed to load standings</div>';
+            }
+        }
+
+        async function loadScorers() {
+            try {
+                const res = await fetch(`${API}/scorers`);
+                const json = await res.json();
+                const scorers = json.data?.scorers || [];
+                
+                let html = `<table>
+                    <thead><tr><th>#</th><th>Player</th><th>Team</th><th>⚽</th><th>🅰️</th><th>GP</th></tr></thead>
+                    <tbody>`;
+                
+                scorers.slice(0, 15).forEach((s, i) => {
+                    html += `<tr>
+                        <td class="pos">${i + 1}</td>
+                        <td class="team-name">${s.player.name}</td>
+                        <td><img class="crest" src="${s.team.crest}" alt="">${s.team.shortName}</td>
+                        <td class="scorer-goals">${s.goals || 0}</td>
+                        <td>${s.assists || 0}</td>
+                        <td>${s.playedMatches || 0}</td>
+                    </tr>`;
+                });
+                html += '</tbody></table>';
+                document.getElementById('scorers-table').innerHTML = html;
+            } catch (e) {
+                document.getElementById('scorers-table').innerHTML = '<div class="error">Failed to load scorers</div>';
+            }
+        }
+
+        async function loadResults() {
+            try {
+                const res = await fetch(`${API}/matches`);
+                const json = await res.json();
+                const matches = (json.data?.matches || [])
+                    .filter(m => m.status === 'FINISHED')
+                    .sort((a, b) => new Date(b.utcDate) - new Date(a.utcDate))
+                    .slice(0, 15);
+                
+                let html = `<table>
+                    <thead><tr><th>Date</th><th style="text-align:right">Home</th><th style="text-align:center">Score</th><th>Away</th></tr></thead>
+                    <tbody>`;
+                
+                matches.forEach(m => {
+                    const date = new Date(m.utcDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                    const hs = m.score.fullTime.home;
+                    const as = m.score.fullTime.away;
+                    html += `<tr>
+                        <td class="match-date">${date}</td>
+                        <td class="match-home">${m.homeTeam.shortName}</td>
+                        <td class="match-score">${hs} - ${as}</td>
+                        <td>${m.awayTeam.shortName}</td>
+                    </tr>`;
+                });
+                html += '</tbody></table>';
+                document.getElementById('results-table').innerHTML = html;
+            } catch (e) {
+                document.getElementById('results-table').innerHTML = '<div class="error">Failed to load results</div>';
+            }
+        }
+
+        async function loadHealth() {
+            try {
+                const res = await fetch(`${API}/health`);
+                const json = await res.json();
+                document.getElementById('health-badge').textContent = `● ${json.status === 'healthy' ? 'Pipeline Healthy' : 'Issues Detected'}`;
+                document.getElementById('health-badge').className = `status-badge ${json.status === 'healthy' ? 'status-healthy' : 'error'}`;
+                
+                if (json.checks?.standings?.last_modified) {
+                    const d = new Date(json.checks.standings.last_modified);
+                    document.getElementById('last-updated').textContent = `Last updated: ${d.toLocaleString()}`;
+                }
+            } catch (e) {
+                document.getElementById('health-badge').textContent = '● API Unavailable';
+            }
+        }
+
+        // Load all data
+        Promise.all([loadStandings(), loadScorers(), loadResults(), loadHealth()]);
+    </script>
+</body>
+</html>

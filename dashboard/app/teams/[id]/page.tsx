@@ -4,6 +4,8 @@ import Link from "next/link";
 import type { TeamPage } from "@/lib/data";
 import { TEAM_COLORS, getQualificationZone } from "@/lib/data";
 import TeamBadge from "@/components/TeamBadge";
+
+export const dynamic = "force-dynamic";
 import FormBadges from "@/components/FormBadges";
 
 async function getTeam(id: string): Promise<TeamPage | null> {
