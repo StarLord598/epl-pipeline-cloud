@@ -387,7 +387,6 @@ epl-pipeline/
 *Built by [Andres Alvarez](https://github.com/StarLord598) — Data Engineering Portfolio Project*
 *Pipeline automation by [Rocket 🦝](https://github.com/rocket-racoon-tech-bot)*
 
-- TEST
 ---
 
 ## ☁️ AWS Cloud Layer
@@ -400,13 +399,13 @@ The pipeline includes an optional **AWS cloud deployment** that runs the same in
 |-----------|-------------|---------|
 | Data Lake | S3 (Parquet) | Medallion architecture: raw → staging → mart |
 | Ingestion | Lambda (x5) | daily_ingest, live_matches, backfill, data_quality, api |
+| Dashboard | ECS Fargate | Dockerized Next.js dashboard (0.25 vCPU, 512 MB) |
 | Orchestration | Step Functions | Daily pipeline: Ingest → Quality Check → Notify |
 | Scheduling | EventBridge | SFN trigger, live matches, backfill |
 | Public API | API Gateway + CloudFront | REST endpoints with CDN caching |
 | Monitoring | CloudWatch + SNS | Dashboard, alarms, notifications |
 | Catalog | Glue Catalog | Schema-on-read for Athena |
 | Query Engine | Athena | SQL analytics on S3 data |
-| Analytics Warehouse | Redshift Serverless | 8 RPU, scales to zero — $0 when idle |
 | Secrets | Secrets Manager | API key storage |
 | IaC | Terraform | All infrastructure as code |
 | CI/CD | GitHub Actions | OIDC-based deployment (no static keys) |
@@ -445,10 +444,25 @@ cd dbt && dbt run --target cloud
 terraform output cloudfront_url
 ```
 
+### Dashboard (ECS Fargate)
+
+The Next.js dashboard is deployed as a Docker container on ECS Fargate:
+
+```bash
+# Build and push Docker image
+cd dashboard
+docker build -t epl-pipeline-dashboard .
+# Tag and push to ECR (see deploy docs)
+```
+
+- **Cluster**: `epl-pipeline` (Fargate)
+- **Container**: 0.25 vCPU, 512 MB
+- **Static fallback**: S3-hosted HTML dashboard
+
 ### Cost
 
-Estimated **~$2.20/month** for dev environment. See [docs/AWS_ARCHITECTURE.md](docs/AWS_ARCHITECTURE.md) for full breakdown.
+Estimated **~$2–3/month** for dev environment (ECS Fargate is the primary cost; Lambda, S3, Athena, and Glue are effectively free at this scale). See [docs/AWS_ARCHITECTURE.md](docs/AWS_ARCHITECTURE.md) for full breakdown.
 
 ### Local vs Cloud
 
-All three targets work simultaneously — `dbt run` uses DuckDB locally, `dbt run --target cloud` uses Athena, `dbt run --target redshift` uses Redshift Serverless. The dashboard continues to serve from local JSON exports. The public API serves data directly from S3 via API Gateway + CloudFront.
+Both targets work simultaneously — `dbt run` uses DuckDB locally, `dbt run --target cloud` uses Athena. The dashboard continues to serve from local JSON exports. The public API serves data directly from S3 via API Gateway + CloudFront.
