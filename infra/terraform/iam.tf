@@ -85,42 +85,6 @@ resource "aws_iam_role_policy" "lambda_secrets" {
   })
 }
 
-resource "aws_iam_role_policy" "lambda_redshift" {
-  name = "redshift-data-access"
-  role = aws_iam_role.lambda_exec.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Sid    = "RedshiftDataAPI"
-        Effect = "Allow"
-        Action = [
-          "redshift-data:ExecuteStatement",
-          "redshift-data:DescribeStatement",
-          "redshift-data:GetStatementResult",
-          "redshift-data:ListStatements"
-        ]
-        Resource = "*"
-        # Note: redshift-data API does not support resource-level permissions
-      },
-      {
-        Sid    = "RedshiftServerlessAccess"
-        Effect = "Allow"
-        Action = [
-          "redshift-serverless:GetCredentials",
-          "redshift-serverless:GetWorkgroup",
-          "redshift-serverless:GetNamespace"
-        ]
-        Resource = [
-          "arn:aws:redshift-serverless:${var.aws_region}:${data.aws_caller_identity.current.account_id}:namespace/*",
-          "arn:aws:redshift-serverless:${var.aws_region}:${data.aws_caller_identity.current.account_id}:workgroup/*"
-        ]
-      }
-    ]
-  })
-}
-
 resource "aws_iam_role_policy_attachment" "lambda_basic" {
   role       = aws_iam_role.lambda_exec.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
