@@ -18,14 +18,14 @@ export default function LineagePage() {
           </div>
         </div>
         <DataSourceBadge
-          pattern="Data Lineage"
-          source="dbt docs — 18 models, 9 sources, 37 tests"
-          explanation="Auto-generated DAG showing full dependency graph from raw sources → staging views → Gold marts. Every model, column, and test is documented. Enables impact analysis: if raw.live_matches schema changes, which downstream models break?"
+          pattern="Data Lineage (DAG)"
+          source="18 dbt models (facts, dimensions, SCDs, snapshots) · 9 sources · 37 tests"
+          explanation="Auto-generated dependency graph showing the full medallion architecture: raw sources → staging views (deduplication, type casting) → Gold marts (facts, dimensions, SCD Type 2, rolling aggregates). Every model, column, and test is documented with contracts. Enables impact analysis: if raw.live_matches schema changes, trace which downstream staging views, fact tables, and dimensions break. Hosted on AWS: S3 data lake → Glue Catalog → Athena-queryable layers."
         />
       </div>
       <div className="glass rounded-2xl overflow-hidden" style={{ height: "calc(100vh - 200px)" }}>
         <iframe
-          src="/lineage/index.html"
+          src="/dbt-docs/index.html"
           className="w-full h-full border-0"
           title="dbt Data Lineage"
         />

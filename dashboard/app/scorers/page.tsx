@@ -78,9 +78,9 @@ export default function ScorersPage() {
           </div>
         </div>
         <DataSourceBadge
-          pattern="Star Schema"
-          source="Gold: mart_top_scorers → stg_top_scorers → raw.top_scorers"
-          explanation="Kimball star schema — mart_top_scorers is a fact table with player metrics (goals, assists, per-game rates). Joins with dim_teams for team context. Enables slice-and-dice analysis by team, position, and contribution type."
+          pattern="Star Schema (Kimball)"
+          source="Gold: mart_top_scorers (fact) ⟶ dim_teams (conformed dimension)"
+          explanation="Kimball star schema — mart_top_scorers is a transaction fact table with player grain metrics (goals, assists, penalties, per-game rates). Joins to dim_teams conformed dimension for team context, enabling slice-and-dice by team, nationality, and contribution type. Surrogate keys link fact to dimension. Runs on AWS: Lambda ingests → S3 Parquet → Glue Catalog (schema registry) → Athena star-schema joins."
         />
       </div>
 

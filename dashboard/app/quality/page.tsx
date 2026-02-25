@@ -103,8 +103,8 @@ export default function QualityPage() {
         </div>
         <DataSourceBadge
           pattern="Data Observability"
-          source="37 dbt tests + schema contracts + freshness SLAs"
-          explanation="Monitors pipeline health: dbt tests (unique, not_null, accepted_values), source freshness SLAs (1h warn / 4h error on live tables), schema contracts (pre-ingestion validation via contracts.py), and table inventory tracking. Catches data quality issues before they reach the dashboard."
+          source="37 data quality tests + schema contracts + freshness SLAs + table inventory"
+          explanation="Full data observability layer: uniqueness tests (no duplicate match_ids), not_null constraints on key columns, accepted_values validation (e.g., match status enum), and source freshness SLAs (1h warn / 4h error). Schema contracts enforce column types pre-ingestion. Table inventory tracks row counts and staleness across all Bronze/Silver/Gold layers. Runs on AWS: CloudWatch monitors Lambda health, Athena validates S3 data quality, Step Functions catch pipeline failures."
         />
       </div>
 

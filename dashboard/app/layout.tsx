@@ -31,7 +31,7 @@ export default function RootLayout({
                 <span className="w-2 h-2 rounded-full bg-[#00ff85] inline-block" />
                 EPL Analytics Dashboard · 2025-26 Season
               </p>
-              <p>Built with Next.js + Airflow + DuckDB + dbt</p>
+              <p>AWS Cloud · Lambda · S3 · Step Functions · ECS Fargate · Athena · CloudFront · Terraform IaC</p>
             </div>
           </div>
         </footer>

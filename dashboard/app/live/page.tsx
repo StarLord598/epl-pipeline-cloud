@@ -315,9 +315,9 @@ export default function LivePage() {
           )}
         </div>
         <DataSourceBadge
-          pattern="Real-Time Ingestion"
+          pattern="Transaction Fact (CDC Pattern)"
           source="Gold: mart_live_matches → stg_live_matches → raw.live_matches"
-          explanation="CDC-like pattern — football-data.org API polled every 15 min on matchdays via Airflow. Each poll appends to Bronze (append-only). Silver deduplicates via ROW_NUMBER() PARTITION BY match_id. ShortCircuitOperator skips non-matchdays to conserve API quota."
+          explanation="Transaction fact table with CDC-like ingestion. Each API poll creates a new transaction record (append-only Bronze layer). Silver deduplicates via ROW_NUMBER() PARTITION BY match_id ORDER BY ingested_at DESC — keeping only the latest state per match (Type 1 SCD behavior). Enables both current-state queries and historical audit trail. Runs on AWS: Lambda polls every 15 min via EventBridge → S3 append-only → Athena dedup → Step Functions orchestration."
         />
       </div>
 
@@ -360,7 +360,7 @@ export default function LivePage() {
             <div className="w-2 h-2 rounded-full bg-[#00ff85] animate-pulse" />
           </div>
           <div>
-            <p className="text-sm text-gray-300">Airflow Pipeline</p>
+            <p className="text-sm text-gray-300">AWS Step Functions Pipeline</p>
             <p className="text-[11px] text-gray-600">Data refreshes every 15 minutes via live_poll_15m DAG</p>
           </div>
         </div>

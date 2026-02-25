@@ -1,16 +1,35 @@
-# ⚽ EPL Analytics Pipeline
+# ⚽ EPL Cloud Analytics Pipeline
 
-> **A production-grade data engineering platform** that ingests, transforms, tests, and serves Premier League data — orchestrated by Airflow, modeled in dbt, stored in DuckDB, and served through a Next.js dashboard with REST APIs.
+> **A production-grade cloud data engineering platform** that ingests, transforms, tests, and serves Premier League data — orchestrated locally by Airflow and in the cloud by AWS Step Functions, modeled in dbt, stored in DuckDB (local) and S3 (cloud), and served through a modern Next.js dashboard deployed on Vercel.
 
-[![CI — EPL Pipeline](https://github.com/StarLord598/epl-pipeline/actions/workflows/ci.yml/badge.svg)](https://github.com/StarLord598/epl-pipeline/actions)
+🔗 **[Live Dashboard →](https://andres-alvarez-de-cloud-epl-analytics.vercel.app)**
+
+[![CI — EPL Pipeline](https://github.com/StarLord598/epl-pipeline-cloud/actions/workflows/ci.yml/badge.svg)](https://github.com/StarLord598/epl-pipeline-cloud/actions)
 ![dbt](https://img.shields.io/badge/dbt-18%20models-orange)
 ![Tests](https://img.shields.io/badge/tests-37%20passing-brightgreen)
 ![Streaming](https://img.shields.io/badge/streaming-SSE%20replay-blueviolet)
+![AWS](https://img.shields.io/badge/cloud-AWS-FF9900?logo=amazonaws)
+![Vercel](https://img.shields.io/badge/dashboard-Vercel-000?logo=vercel)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
 ---
 
 ## 🏗️ Architecture
+
+This project has **two deployment targets** that work simultaneously:
+
+| | Local | Cloud |
+|---|---|---|
+| **Storage** | DuckDB (embedded OLAP) | S3 Data Lake (Parquet) |
+| **Orchestration** | Airflow (Docker) | Step Functions + EventBridge |
+| **Ingestion** | Python scripts | AWS Lambda (x5) |
+| **Query Engine** | DuckDB | Athena (serverless SQL on S3) |
+| **dbt Target** | `local` (DuckDB) | `cloud` (Athena) |
+| **Dashboard** | `localhost:3000` | [Vercel](https://andres-alvarez-de-cloud-epl-analytics.vercel.app) (auto-deploy from `main`) |
+| **Public API** | Next.js API Routes | API Gateway + CloudFront |
+| **Monitoring** | — | CloudWatch Dashboard + Alarms + SNS |
+| **IaC** | Docker Compose | Terraform (1,762 lines, 14 files, 62 resources) |
+| **CI/CD** | — | GitHub Actions (OIDC, no static keys) |
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -19,60 +38,38 @@
 │  (live scores)        (129K match events)   (weather)    (fallback)   │
 └──────────┬─────────────────────────┬──────────────────────┬─────────┘
            │                         │                      │
-           ▼                         ▼                      ▼
+     ┌─────┴──────────┐        ┌────┴──────┐          ┌────┴────┐
+     │  AWS Lambda x5 │        │  Python   │          │Open-Meteo│
+     │  (cloud ingest)│        │  scripts  │          │  API     │
+     └─────┬──────────┘        │  (local)  │          └────┬────┘
+           │                   └────┬──────┘               │
+           ▼                        ▼                      ▼
+┌──────────────────┐   ┌──────────────────────────────────────────────┐
+│  S3 Data Lake    │   │           DuckDB (local OLAP)                │
+│  (Parquet)       │   │                                              │
+│  raw/ stg/ mart/ │   │  🥉 Bronze (7 tables) → 🥈 Silver (6 views) │
+└────────┬─────────┘   │  → 🥇 Gold (12 tables)                      │
+         │             └──────────────────┬───────────────────────────┘
+         ▼                                │
+┌──────────────────┐           ┌──────────┴───────────────────────────┐
+│  Athena + Glue   │           │      dbt (18 models, 37 tests)       │
+│  (cloud query)   │           └──────────┬───────────────────────────┘
+└──────────────────┘                      │
+                                          ▼
 ┌──────────────────────────────────────────────────────────────────────┐
-│                    AIRFLOW ORCHESTRATION (Docker)                     │
+│                    DASHBOARD (Next.js 14 + Vercel)                    │
 │                                                                      │
-│  ┌────────────┐ ┌─────────────┐ ┌──────────┐ ┌───────────┐ ┌─────────┐│
-│  │live_poll   │ │hourly_refsh │ │daily_rec │ │ingest_lcl │ │weather  ││
-│  │ ⚡ 15 min  │ │ 🔄 hourly   │ │ 🌙 2 AM  │ │ 📥 6 AM   │ │🌤️ 30min ││
-│  │ + matchday │ │             │ │          │ │           │ │         ││
-│  │ awareness  │ │             │ │          │ │           │ │         ││
-│  └─────┬──────┘ └──────┬──────┘ └────┬─────┘ └─────┬─────┘ └────┬───┘│
-└─────────┼─────────────────┼────────────────┼──────────────┼─────────┘
-          │                 │                │              │
-          ▼                 ▼                ▼              ▼
-┌──────────────────────────────────────────────────────────────────────┐
-│                    SCHEMA CONTRACTS (pre-validation)                  │
-│   Required fields ─── Type checks ─── Enum values ─── Range checks  │
-└──────────────────────────────────────┬───────────────────────────────┘
-                                       │
-          ┌────────────────────────────┼────────────────────────────┐
-          ▼                            ▼                            ▼
-┌──────────────────┐   ┌──────────────────┐   ┌──────────────────────┐
-│  🥉 BRONZE (raw) │   │  🥈 SILVER (stg) │   │   🥇 GOLD (mart)     │
-│                  │   │                  │   │                      │
-│ live_matches     │──▶│ stg_live_matches │──▶│ mart_live_matches    │
-│ live_standings   │──▶│ stg_live_stands  │──▶│ mart_live_league_tbl │
-│ matches          │──▶│ stg_matches      │──▶│ mart_league_table    │
-│ events (129K)    │   │ stg_standings    │──▶│ mart_recent_results  │
-│ top_scorers      │   │ stg_top_scorers  │──▶│ mart_top_scorers     │
-│ standings        │   │ stg_stadium_wthr │──▶│ mart_scd2_standings  │
-│ stadium_weather  │   │                  │   │ mart_points_race     │
-│                  │   │  6 views         │   │ mart_rolling_form    │
-│  7 tables        │   │  (zero storage)  │   │ mart_scd1_matches    │
-│  (append-only)   │   │                  │   │ mart_stadium_weather │
-│                  │   │                  │   │ dim_teams            │
-│                  │   │                  │   │ dim_matchdays        │
-│                  │   │                  │   │  12 tables           │
-└──────────────────┘   └──────────────────┘   └──────────┬───────────┘
-                                                         │
-          ┌────────────────────────┬─────────────────────┤
-          ▼                        ▼                     ▼
-┌──────────────────┐   ┌──────────────────┐   ┌──────────────────────┐
-│ 🛡️ DATA QUALITY  │   │  📡 REST APIs    │   │  🖥️ DASHBOARD        │
-│                  │   │                  │   │                      │
-│ 29 dbt tests     │   │ /api/league-tbl  │   │ 🏆 Table             │
-│ Schema contracts │   │ /api/standings/* │   │ 📈 Points Race       │
-│ Freshness SLAs   │   │ /api/race        │   │ 🔥 Form & Momentum  │
-│ Quality dashboard│   │ /api/form        │   │ ⚡ Live Matches      │
-│                  │   │ /api/teams       │   │ ⚽ Results           │
-│                  │   │ /api/quality     │   │ 🎯 Scorers          │
-│                  │   │ /api/live        │   │ 📊 Stats            │
-│                  │   │ /api/matches     │   │ 🛡️ Quality          │
-│                  │   │ /api/scorers     │   │ 🔗 Lineage          │
-└──────────────────┘   └──────────────────┘   └──────────────────────┘
+│  12 pages: Table · Race · Form · Live · Results · Scorers · Stats   │
+│           Stream · Weather · Quality · Lineage · Health              │
+│                                                                      │
+│  12 API routes (REST + SSE streaming)                                │
+│  🔗 andres-alvarez-de-cloud-epl-analytics.vercel.app                │
+└──────────────────────────────────────────────────────────────────────┘
 ```
+
+For the detailed AWS Mermaid diagram, see [docs/AWS_ARCHITECTURE.md](docs/AWS_ARCHITECTURE.md).
+
+---
 
 ## ✨ Key Features
 
@@ -93,25 +90,47 @@
 | **Idempotent Backfill** | `backfill_season.py` | Safe to re-run — deduplicates on match_id |
 | **Data Quality Framework** | 29 dbt tests + freshness SLAs | Uniqueness, not-null, accepted values, source freshness |
 
-### Platform Capabilities
-| Capability | Details |
-|-----------|---------|
-| **6 Airflow DAGs** | Docker Compose with LocalExecutor + Postgres |
-| **18 dbt Models** | 6 views (Silver) + 11 tables + 1 incremental (Gold) |
-| **37 Data Tests** | All passing — schema, uniqueness, completeness |
-| **11 Dashboard Pages** | Interactive charts, live scores, streaming, weather, quality |
-| **10 REST API Endpoints** | Including SSE streaming endpoint for real-time event replay |
-| **Event Streaming** | SSE-based match replay — 129K StatsBomb events, live possession + scoreboard |
-| **Data Lineage** | Interactive dbt docs DAG at `/lineage` |
-| **CI/CD** | GitHub Actions: lint SQL/Python → dbt test → dashboard build |
-| **Full Documentation** | 150+ columns documented across all models and sources |
+### Cloud Infrastructure (AWS)
+| Component | Service | Purpose |
+|-----------|---------|---------|
+| **Data Lake** | S3 (Parquet, versioned, encrypted) | Medallion architecture: raw → staging → mart |
+| **Ingestion** | Lambda (x5) | daily_ingest, live_matches, backfill, data_quality, api |
+| **Orchestration** | Step Functions | Daily pipeline: Ingest → Quality Check → SNS Notify |
+| **Scheduling** | EventBridge | SFN trigger, live matches (15 min), weekly backfill |
+| **Public API** | API Gateway + CloudFront | REST endpoints with CDN caching |
+| **Dashboard** | Vercel (free tier) | Auto-deploy from `main` branch |
+| **Monitoring** | CloudWatch + SNS | Dashboard, 4 alarms, 2 notification topics |
+| **Catalog** | Glue Catalog | Schema-on-read metadata for Athena |
+| **Query Engine** | Athena | Serverless SQL analytics on S3 |
+| **Secrets** | Secrets Manager | Encrypted API key storage |
+| **IaC** | Terraform (14 files, 1,762 lines) | All 62 AWS resources as code |
+| **CI/CD** | GitHub Actions + OIDC | Federated identity — no static AWS keys |
+
+### Platform Stats
+| Metric | Count |
+|--------|-------|
+| dbt Models | 18 (6 views + 11 tables + 1 incremental) |
+| Data Tests | 37 passing |
+| Dashboard Pages | 12 (interactive charts, live scores, streaming, weather, quality, lineage, health) |
+| REST API Endpoints | 12 (including SSE streaming) |
+| Airflow DAGs | 6 (with matchday-aware scheduling) |
+| Terraform Resources | 62 |
+| Documented Columns | 150+ |
+
+---
 
 ## 🚀 Quick Start
 
+### Live Dashboard (no setup required)
+
+**[→ andres-alvarez-de-cloud-epl-analytics.vercel.app](https://andres-alvarez-de-cloud-epl-analytics.vercel.app)**
+
+### Local Development
+
 ```bash
-# Clone and setup (one command)
-git clone https://github.com/StarLord598/epl-pipeline.git
-cd epl-pipeline
+# Clone and setup
+git clone https://github.com/StarLord598/epl-pipeline-cloud.git
+cd epl-pipeline-cloud
 make setup
 
 # Run everything
@@ -143,62 +162,104 @@ cd dashboard && npm ci && npm run dev     # → http://localhost:3000
 docker compose up -d                      # → http://localhost:8080 (admin/admin)
 ```
 
+### Cloud Deployment (AWS)
+```bash
+# 1. Bootstrap (creates state bucket + lock table)
+./scripts/setup_aws.sh
+
+# 2. Deploy infrastructure (62 resources)
+cd infra/terraform && terraform apply
+
+# 3. Set API key
+aws secretsmanager put-secret-value \
+  --secret-id epl-pipeline/dev/api-keys \
+  --secret-string '{"FOOTBALL_DATA_API_KEY":"your-key"}'
+
+# 4. Deploy Lambda code
+./scripts/deploy_lambdas.sh
+
+# 5. Run dbt against Athena
+cd dbt && dbt run --target cloud
+
+# 6. Get your public API URL
+terraform output cloudfront_url
+```
+
 ### Environment Variables
 ```bash
 cp .env.example .env
 # Required: FOOTBALL_DATA_API_KEY (free at https://www.football-data.org/client/register)
 ```
 
+---
+
 ## 📊 Dashboard Pages
 
-| Page | Route | Description |
-|------|-------|-------------|
-| 🏆 **League Table** | `/` | Live 2025-26 standings with qualification zones, form, per-game stats |
-| 📈 **Points Race** | `/race` | Interactive line chart — cumulative points for all 20 teams across matchdays |
-| 🔥 **Form & Momentum** | `/form` | Hot/Cold momentum panel (rolling 5-game PPG) + SCD2 position history |
-| ⚡ **Live Matches** | `/live` | Real-time scores with status badges (LIVE/HT/FT), auto-refresh |
-| ⚽ **Results** | `/results` | Match results browseable by gameweek |
-| 🎯 **Top Scorers** | `/scorers` | Golden Boot race with bar charts |
-| 📊 **Stats** | `/stats` | Radar charts, team comparisons (select up to 4 teams) |
-| 📡 **Streaming Replay** | `/stream` | SSE-powered match replay — live event feed, possession bar, scoreboard |
-| 🌤️ **Stadium Weather** | `/weather` | Near real-time weather at all 20 EPL stadiums — pitch conditions |
-| 🛡️ **Data Quality** | `/quality` | Test pass rates, freshness SLAs, medallion inventory, table row counts |
-| 🔗 **Data Lineage** | `/lineage` | Interactive dbt docs — full dependency graph for all 18 models |
+**Live:** [andres-alvarez-de-cloud-epl-analytics.vercel.app](https://andres-alvarez-de-cloud-epl-analytics.vercel.app)
+
+| Page | Route | DW Pattern | Description |
+|------|-------|------------|-------------|
+| 🏆 **League Table** | `/` | Fact Table (Kimball) | Live 2025-26 standings with qualification zones, form, per-game stats |
+| 📈 **Points Race** | `/race` | Accumulating Snapshot | Interactive line chart — cumulative points across matchdays |
+| 🔥 **Form & Momentum** | `/form` | Rolling Window + SCD2 | Hot/Cold momentum panel (rolling 5-game PPG) + position history |
+| ⚡ **Live Matches** | `/live` | Transaction Fact (CDC) | Real-time scores with status badges (LIVE/HT/FT), auto-refresh |
+| ⚽ **Results** | `/results` | Incremental Fact Table | Match results browseable by gameweek |
+| 🎯 **Top Scorers** | `/scorers` | Star Schema (Kimball) | Golden Boot race with bar charts |
+| 📊 **Stats** | `/stats` | Conformed Dimension | Radar charts, team comparisons (select up to 4 teams) |
+| 📡 **Streaming Replay** | `/stream` | Event Streaming (Kafka pattern) | SSE-powered match replay — live event feed, possession bar, scoreboard |
+| 🌤️ **Stadium Weather** | `/weather` | Live API Integration | Near real-time weather at all 20 EPL stadiums — pitch conditions |
+| 🛡️ **Data Quality** | `/quality` | Data Observability | Test pass rates, freshness SLAs, medallion inventory |
+| 🔗 **Data Lineage** | `/lineage` | DAG Visualization | Interactive dbt docs — full dependency graph for all 18 models |
+| 🏥 **Pipeline Health** | `/health` | Operational Dashboard | AWS cloud resource status + pipeline monitoring |
+
+---
 
 ## 📡 REST API
 
-All endpoints return JSON with `Cache-Control` headers.
+All endpoints return JSON with `Cache-Control` headers. Full reference: [docs/API.md](docs/API.md)
 
-| Endpoint | Method | Params | Description |
-|----------|--------|--------|-------------|
-| `/api/league-table` | GET | — | Current league standings |
-| `/api/standings/history` | GET | `?team=Arsenal&matchday=15&current_only=true` | SCD2 position history (point-in-time) |
-| `/api/race` | GET | `?teams=Arsenal,Chelsea&from=5&to=20` | Cumulative points race |
-| `/api/form` | GET | `?team=Arsenal&momentum=HOT` | Rolling 5-game form |
-| `/api/teams` | GET | `?tier=TITLE+CONTENDER` | Team dimension with tiers |
-| `/api/quality` | GET | — | Pipeline health and test results |
-| `/api/live` | GET | — | Current live match data |
-| `/api/matches` | GET | — | Full match history |
-| `/api/scorers` | GET | — | Top scorers |
-| `/api/weather` | GET | — | Stadium weather conditions for all 20 venues |
-| `/api/stream` | GET (SSE) | `?match_id=3749358&speed=10` | Server-Sent Events — streams match events in real-time |
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/league-table` | GET | Current league standings |
+| `/api/standings/history` | GET | SCD2 position history (point-in-time queries) |
+| `/api/race` | GET | Cumulative points race (filterable by team/matchday) |
+| `/api/form` | GET | Rolling 5-game form + momentum tiers |
+| `/api/teams` | GET | Team dimension with tier classification |
+| `/api/quality` | GET | Pipeline health and test results |
+| `/api/live` | GET | Current live match data |
+| `/api/matches` | GET | Full match history |
+| `/api/results` | GET | Match results by gameweek |
+| `/api/scorers` | GET | Top scorers |
+| `/api/weather` | GET | Stadium weather conditions (20 venues) |
+| `/api/stream` | GET (SSE) | Real-time match event streaming (speed adjustable 1-100x) |
+| `/api/health` | GET | Pipeline health status |
 
-### Example
+### Cloud API (API Gateway + CloudFront)
+```bash
+curl https://<cloudfront-domain>/standings
+curl https://<cloudfront-domain>/scorers
+curl https://<cloudfront-domain>/matches
+curl https://<cloudfront-domain>/health
+```
+
+### Examples (Local/Vercel)
 ```bash
 # Get all teams currently in HOT form
-curl "http://localhost:3000/api/form?momentum=HOT"
+curl "https://andres-alvarez-de-cloud-epl-analytics.vercel.app/api/form?momentum=HOT"
 
-# Arsenal's position changes this season
-curl "http://localhost:3000/api/standings/history?team=Arsenal&changes_only=true"
+# Arsenal's position changes this season (SCD2)
+curl "https://andres-alvarez-de-cloud-epl-analytics.vercel.app/api/standings/history?team=Arsenal&changes_only=true"
 
 # Points race for the title contenders
-curl "http://localhost:3000/api/race?teams=Arsenal,Manchester%20City,Chelsea"
+curl "https://andres-alvarez-de-cloud-epl-analytics.vercel.app/api/race?teams=Arsenal,Manchester%20City,Chelsea"
 ```
+
+---
 
 ## 🗂️ Project Structure
 
 ```
-epl-pipeline/
+epl-pipeline-cloud/
 ├── Makefile                        # One-command interface (setup/run/test/demo)
 ├── docker-compose.yml              # Airflow + Postgres
 ├── requirements.txt                # Python dependencies (pinned)
@@ -219,39 +280,41 @@ epl-pipeline/
 │   ├── export_stream_events.py     # StatsBomb events → SSE replay JSON
 │   ├── ingest_weather.py           # Open-Meteo API → 20 stadiums
 │   ├── stadium_coordinates.json    # All 20 EPL stadium lat/lon
+│   ├── setup_aws.sh                # Bootstrap AWS (state bucket + DynamoDB)
+│   ├── deploy_lambdas.sh           # Package & deploy Lambda functions
 │   └── live_common.py              # Shared utilities
 │
-├── dbt/                            # SQL transformations (dbt-duckdb)
+├── dbt/                            # SQL transformations (dbt-duckdb / dbt-athena)
 │   ├── models/
 │   │   ├── staging/                # 🥈 Silver layer (6 views)
 │   │   │   ├── stg_matches.sql
 │   │   │   ├── stg_standings.sql
 │   │   │   ├── stg_top_scorers.sql
-│   │   │   ├── stg_live_matches.sql        # Dedup via ROW_NUMBER()
-│   │   │   ├── stg_live_standings.sql      # Dedup via ROW_NUMBER()
-│   │   │   ├── stg_stadium_weather.sql     # Latest weather per stadium
-│   │   │   └── schema.yml                  # 7 sources, 6 models, all columns documented
+│   │   │   ├── stg_live_matches.sql
+│   │   │   ├── stg_live_standings.sql
+│   │   │   ├── stg_stadium_weather.sql
+│   │   │   └── schema.yml          # 7 sources, 6 models documented
 │   │   └── mart/                   # 🥇 Gold layer (11 tables + 1 incremental)
 │   │       ├── mart_league_table.sql
 │   │       ├── mart_live_league_table.sql
 │   │       ├── mart_live_matches.sql
 │   │       ├── mart_recent_results.sql     # Incremental
 │   │       ├── mart_top_scorers.sql
-│   │       ├── mart_scd1_matches.sql       # SCD Type 1 (upsert)
+│   │       ├── mart_scd1_matches.sql       # SCD Type 1
 │   │       ├── mart_scd2_standings.sql     # SCD Type 2
-│   │       ├── mart_points_race.sql        # Cumulative metrics
-│   │       ├── mart_rolling_form.sql       # Rolling windows
-│   │       ├── mart_stadium_weather.sql    # Weather + pitch conditions
-│   │       ├── dim_teams.sql               # Kimball dimension
-│   │       ├── dim_matchdays.sql           # Schedule dimension
-│   │       └── schema.yml                  # All models + columns documented
+│   │       ├── mart_points_race.sql
+│   │       ├── mart_rolling_form.sql
+│   │       ├── mart_stadium_weather.sql
+│   │       ├── dim_teams.sql
+│   │       ├── dim_matchdays.sql
+│   │       └── schema.yml          # All models + columns documented
 │   ├── macros/
 │   │   ├── safe_divide.sql         # Portable division (BigQuery ↔ DuckDB)
 │   │   └── generate_schema_name.sql
 │   ├── dbt_project.yml
-│   └── profiles.yml                # Local (DuckDB) target
+│   └── profiles.yml                # Local (DuckDB) + Cloud (Athena) targets
 │
-├── dags/                           # Orchestration (6 active DAGs)
+├── dags/                           # Airflow orchestration (6 active DAGs)
 │   ├── live_poll_15m.py            # ⚡ 15-min + matchday-aware ShortCircuit
 │   ├── hourly_refresh.py           # 🔄 Hourly pipeline
 │   ├── dbt_transform.py            # 🔧 30-min dbt runs
@@ -259,30 +322,60 @@ epl-pipeline/
 │   ├── ingest_epl_local.py         # 📥 6 AM StatsBomb refresh
 │   └── weather_ingest.py           # 🌤️ 30-min stadium weather
 │
+├── lambda/                         # AWS Lambda functions
+│   ├── daily_ingest/               # StatsBomb → S3
+│   ├── live_matches/               # football-data.org → S3
+│   ├── backfill/                   # Season backfill → S3
+│   ├── data_quality/               # Validation checks
+│   └── api/                        # REST API (S3 → JSON)
+│
+├── infra/                          # Infrastructure as Code
+│   └── terraform/                  # 14 files, 1,762 lines, 62 resources
+│       ├── main.tf                 # S3 data lake, ECS, ECR, static dashboard
+│       ├── lambda.tf               # 5 Lambda functions + layers
+│       ├── api_gateway.tf          # REST API endpoints
+│       ├── cloudfront.tf           # CDN distribution
+│       ├── eventbridge.tf          # Scheduling rules
+│       ├── monitoring.tf           # CloudWatch + SNS + alarms
+│       ├── iam.tf                  # Roles (Lambda, SFN, OIDC)
+│       ├── glue.tf                 # Data catalog
+│       ├── athena.tf               # Query workgroup
+│       └── outputs.tf              # Exported URLs & ARNs
+│
 ├── dashboard/                      # Next.js 14 + TypeScript + Tailwind
-│   ├── app/                        # 11 pages (App Router)
+│   ├── app/                        # 12 pages (App Router)
 │   │   ├── page.tsx                # League table
 │   │   ├── race/page.tsx           # Points race chart
 │   │   ├── form/page.tsx           # Momentum + SCD2 tracker
 │   │   ├── live/page.tsx           # Live matches
 │   │   ├── results/page.tsx        # Match results
 │   │   ├── scorers/page.tsx        # Top scorers
-│   │   ├── stats/page.tsx          # Team comparisons
-│   │   ├── stream/page.tsx         # SSE match replay + live possession
-│   │   ├── weather/page.tsx        # Stadium weather conditions
+│   │   ├── stats/page.tsx          # Team comparisons (radar)
+│   │   ├── stream/page.tsx         # SSE match replay
+│   │   ├── weather/page.tsx        # Stadium weather
 │   │   ├── quality/page.tsx        # Data quality dashboard
 │   │   ├── lineage/page.tsx        # dbt docs embed
-│   │   └── api/                    # 10 REST API routes (incl. SSE)
-│   ├── components/                 # Reusable UI (Navigation, TeamBadge, etc.)
+│   │   ├── health/page.tsx         # AWS resource status + pipeline health
+│   │   └── api/                    # 12 REST API routes (incl. SSE, health)
+│   ├── components/                 # Navigation, TeamBadge, DataSourceBadges, etc.
 │   └── lib/                        # Data fetching + types
 │
 ├── data/
 │   └── epl_pipeline.duckdb         # Local OLAP warehouse
 │
+├── tests/                          # Python unit tests (pytest)
+│
 └── docs/
+    ├── AWS_ARCHITECTURE.md         # Full cloud architecture + Mermaid diagram
+    ├── API.md                      # REST API reference
+    ├── SECURITY.md                 # Security posture (OIDC, IAM, encryption)
+    ├── MVP_BUILD_SUMMARY.md        # Original build notes
+    ├── live-pipeline-spec.md       # Live pipeline specification
     ├── architecture.mmd            # Mermaid source
-    └── architecture.png            # Rendered diagram
+    └── architecture.png            # Rendered architecture diagram
 ```
+
+---
 
 ## 🧪 Data Quality
 
@@ -296,44 +389,33 @@ epl-pipeline/
 - Required fields, type checks, enum validation, range checks, nested field validation
 - 10% failure threshold blocks entire batch from entering Bronze
 
-### Quality Dashboard (`/quality`)
+### Quality Dashboard ([`/quality`](https://andres-alvarez-de-cloud-epl-analytics.vercel.app/quality))
 - Real-time test pass rates
 - Data freshness with SLA indicators
 - Table inventory across Bronze/Silver/Gold
 - Individual test execution times
 
-## 🛠️ Technology Stack
-
-| Layer | Technology | Purpose |
-|-------|-----------|---------|
-| **Ingestion** | Python 3.13, requests | API extraction with contract validation |
-| **Storage** | DuckDB 1.1 | Embedded OLAP database (zero-config, columnar) |
-| **Transform** | dbt-core 1.8 + dbt-duckdb | SQL transforms, testing, documentation |
-| **Orchestration** | Apache Airflow 2.9 (Docker) | 5 DAGs with matchday-aware scheduling |
-| **Dashboard** | Next.js 14, TypeScript, Tailwind CSS | 9-page data application |
-| **Charts** | Recharts | Line charts, bar charts, radar charts |
-| **API** | Next.js API Routes | 8 REST endpoints with query filters |
-| **CI/CD** | GitHub Actions | Lint → dbt build → dashboard build |
-| **Containers** | Docker Compose | Airflow + Postgres backend |
+---
 
 ## 📈 Data Pipeline Details
 
 ### Medallion Architecture
 
-| Layer | Schema | Count | Materialization | Retention | Purpose |
-|-------|--------|-------|-----------------|-----------|---------|
-| 🥉 **Bronze** | `raw` | 6 tables | Append-only | Unlimited | Raw API responses — full audit trail |
-| 🥈 **Silver** | `staging` | 5 views | Virtual (zero storage) | N/A | Dedup, normalize, derive metrics |
-| 🥇 **Gold** | `mart` | 9 tables + 1 incremental | Full refresh / incremental | Current state | Business-ready data for dashboard + APIs |
+| Layer | Schema | Count | Materialization | Purpose |
+|-------|--------|-------|-----------------|---------|
+| 🥉 **Bronze** | `raw` | 7 tables | Append-only | Raw API responses — full audit trail |
+| 🥈 **Silver** | `staging` | 6 views | Virtual (zero storage) | Dedup, normalize, derive metrics |
+| 🥇 **Gold** | `mart` | 12 tables (11 + 1 incremental) | Full refresh / incremental | Business-ready data for dashboard + APIs |
 
 ### Data Warehouse Patterns
 
 | Pattern | Model | What It Demonstrates |
 |---------|-------|---------------------|
 | **SCD Type 2** | `mart_scd2_standings` | Pure versioned history — collapses unchanged positions into single rows (~330 vs 760 rows) |
+| **SCD Type 1** | `mart_scd1_matches` | Upsert with correction tracking — first_seen, last_updated, update_count |
 | **Kimball Dimensions** | `dim_teams`, `dim_matchdays` | Star schema with tier classification and schedule awareness |
 | **Rolling Windows** | `mart_rolling_form` | 5-game rolling PPG, momentum tiers (HOT/STEADY/COOLING/COLD) |
-| **Cumulative Metrics** | `mart_points_race` | Running totals for season-long visualization |
+| **Accumulating Snapshot** | `mart_points_race` | Running totals for season-long visualization |
 | **Incremental** | `mart_recent_results` | Append-only processing — only new matches per run |
 | **View-based Staging** | All `stg_*` models | Zero-cost transforms that always reflect latest Bronze data |
 | **Schema Contracts** | `contracts.py` | Pre-validation firewall at the ingestion boundary |
@@ -345,7 +427,34 @@ epl-pipeline/
 |--------|------|-----------|---------|
 | football-data.org | Live scores, standings (2025-26) | Every 15 min | 380 matches, 20 teams |
 | StatsBomb Open Data | Historical match events | Daily batch | 129K+ events |
+| Open-Meteo | Stadium weather (20 venues) | Every 30 min | Real-time |
 | TheSportsDB | Fallback scores | On API failure | Auto-failover |
+
+---
+
+## 🛠️ Technology Stack
+
+| Layer | Technology | Purpose |
+|-------|-----------|---------|
+| **Ingestion** | Python 3.13, requests | API extraction with contract validation |
+| **Local Storage** | DuckDB 1.1 | Embedded OLAP database (zero-config, columnar) |
+| **Cloud Storage** | S3 (Parquet) | Versioned, encrypted data lake |
+| **Transform** | dbt-core 1.8 + dbt-duckdb | SQL transforms, testing, documentation |
+| **Local Orchestration** | Apache Airflow 2.9 (Docker) | 6 DAGs with matchday-aware scheduling |
+| **Cloud Orchestration** | Step Functions + EventBridge | Serverless daily pipeline |
+| **Cloud Compute** | AWS Lambda (x5) | Serverless ingestion & API |
+| **Cloud Query** | Athena + Glue Catalog | Serverless SQL on S3 |
+| **Dashboard** | Next.js 14, TypeScript, Tailwind CSS | 12-page data application |
+| **Dashboard Hosting** | Vercel (free tier) | Auto-deploy from `main`, zero-config |
+| **Charts** | Recharts | Line charts, bar charts, radar charts |
+| **API** | Next.js API Routes + API Gateway | 12 local + 4 cloud REST endpoints |
+| **CDN** | CloudFront | HTTPS, caching, custom-domain ready |
+| **Monitoring** | CloudWatch + SNS | Dashboard, alarms, notifications |
+| **CI/CD** | GitHub Actions (OIDC) | Lint → dbt build → dashboard build (no static keys) |
+| **IaC** | Terraform | 62 AWS resources, 14 files |
+| **Containers** | Docker Compose | Airflow + Postgres backend |
+
+---
 
 ## 💰 Cost
 
@@ -354,9 +463,17 @@ epl-pipeline/
 | DuckDB | Free (embedded) |
 | football-data.org API | Free tier (10 req/min) |
 | StatsBomb Open Data | Free (open source) |
+| Open-Meteo | Free (no key required) |
 | Airflow (Docker) | Free (local) |
+| Vercel Dashboard | Free (hobby tier) |
 | GitHub Actions CI | Free (public repo) |
-| **Total** | **$0/month** |
+| **Local Total** | **$0/month** |
+| AWS Cloud Layer | ~$2–5/month (dev) |
+| **Cloud Total** | **~$2–5/month** |
+
+See [docs/AWS_ARCHITECTURE.md](docs/AWS_ARCHITECTURE.md) for full AWS cost breakdown.
+
+---
 
 ## 🗺️ Roadmap
 
@@ -364,19 +481,38 @@ epl-pipeline/
 - [x] 6 Airflow DAGs with matchday-aware scheduling
 - [x] 18 dbt models with 37 tests
 - [x] Full 2025-26 season backfill (380 matches)
-- [x] SCD Type 2 position tracking
+- [x] SCD Type 1 + Type 2 position tracking
 - [x] Rolling form + momentum classification
 - [x] Kimball dimensions (teams, matchdays)
 - [x] Schema contract validation
-- [x] 11-page Next.js dashboard
-- [x] 10 REST API endpoints (including SSE streaming)
+- [x] 12-page Next.js dashboard
+- [x] 12 REST API endpoints (including SSE streaming)
 - [x] SSE match replay — real-time event streaming (producer → consumer pattern)
 - [x] Stadium weather pipeline (Open-Meteo → 20 EPL venues)
-- [x] Data quality dashboard
-- [x] Data lineage visualization
-- [x] CI/CD with GitHub Actions
+- [x] Data quality dashboard + lineage visualization
+- [x] Pipeline health page with AWS resource inventory
+- [x] CI/CD with GitHub Actions (OIDC — no static keys)
+- [x] AWS cloud layer — S3, Lambda, Step Functions, EventBridge, API Gateway, CloudFront, Athena, Glue
+- [x] Terraform IaC (62 resources, 1,762 lines)
+- [x] CloudWatch monitoring + 4 alarms + 2 SNS topics
+- [x] Vercel deployment (live dashboard, auto-deploy from `main`)
+- [x] Data warehouse pattern badges (SCD, Kimball, Accumulating Snapshot, etc.)
 - [x] One-command setup (Makefile)
 - [x] 150+ columns fully documented
+
+---
+
+## 📄 Documentation
+
+| Document | Description |
+|----------|-------------|
+| [AWS Architecture](docs/AWS_ARCHITECTURE.md) | Full cloud architecture, Mermaid diagram, resource inventory, cost estimate |
+| [API Reference](docs/API.md) | All REST endpoints with examples and response schemas |
+| [Security](docs/SECURITY.md) | OIDC auth, IAM roles, encryption, network security |
+| [Live Pipeline Spec](docs/live-pipeline-spec.md) | Airflow DAG specifications and scheduling logic |
+| [MVP Build Summary](docs/MVP_BUILD_SUMMARY.md) | Original build notes and design decisions |
+
+---
 
 ## 📝 License
 
@@ -386,83 +522,3 @@ epl-pipeline/
 
 *Built by [Andres Alvarez](https://github.com/StarLord598) — Data Engineering Portfolio Project*
 *Pipeline automation by [Rocket 🦝](https://github.com/rocket-racoon-tech-bot)*
-
----
-
-## ☁️ AWS Cloud Layer
-
-The pipeline includes an optional **AWS cloud deployment** that runs the same ingestion logic serverlessly.
-
-### Cloud Stack
-
-| Component | AWS Service | Purpose |
-|-----------|-------------|---------|
-| Data Lake | S3 (Parquet) | Medallion architecture: raw → staging → mart |
-| Ingestion | Lambda (x5) | daily_ingest, live_matches, backfill, data_quality, api |
-| Dashboard | ECS Fargate | Dockerized Next.js dashboard (0.25 vCPU, 512 MB) |
-| Orchestration | Step Functions | Daily pipeline: Ingest → Quality Check → Notify |
-| Scheduling | EventBridge | SFN trigger, live matches, backfill |
-| Public API | API Gateway + CloudFront | REST endpoints with CDN caching |
-| Monitoring | CloudWatch + SNS | Dashboard, alarms, notifications |
-| Catalog | Glue Catalog | Schema-on-read for Athena |
-| Query Engine | Athena | SQL analytics on S3 data |
-| Secrets | Secrets Manager | API key storage |
-| IaC | Terraform | All infrastructure as code |
-| CI/CD | GitHub Actions | OIDC-based deployment (no static keys) |
-
-### Public API
-
-After deployment, access pipeline data via the CloudFront URL:
-
-```bash
-# Get the API URL
-cd infra/terraform && terraform output cloudfront_url
-
-# Example endpoints
-curl https://<cloudfront-domain>/standings
-curl https://<cloudfront-domain>/scorers
-curl https://<cloudfront-domain>/matches
-curl https://<cloudfront-domain>/health
-```
-
-### Quick Start (Cloud)
-
-```bash
-# 1. Bootstrap (creates state bucket + lock table)
-./scripts/setup_aws.sh
-
-# 2. Deploy infrastructure
-cd infra/terraform && terraform apply
-
-# 3. Deploy Lambda code
-./scripts/deploy_lambdas.sh
-
-# 4. Run dbt against Athena
-cd dbt && dbt run --target cloud
-
-# 5. Get your public API URL
-terraform output cloudfront_url
-```
-
-### Dashboard (ECS Fargate)
-
-The Next.js dashboard is deployed as a Docker container on ECS Fargate:
-
-```bash
-# Build and push Docker image
-cd dashboard
-docker build -t epl-pipeline-dashboard .
-# Tag and push to ECR (see deploy docs)
-```
-
-- **Cluster**: `epl-pipeline` (Fargate)
-- **Container**: 0.25 vCPU, 512 MB
-- **Static fallback**: S3-hosted HTML dashboard
-
-### Cost
-
-Estimated **~$2–3/month** for dev environment (ECS Fargate is the primary cost; Lambda, S3, Athena, and Glue are effectively free at this scale). See [docs/AWS_ARCHITECTURE.md](docs/AWS_ARCHITECTURE.md) for full breakdown.
-
-### Local vs Cloud
-
-Both targets work simultaneously — `dbt run` uses DuckDB locally, `dbt run --target cloud` uses Athena. The dashboard continues to serve from local JSON exports. The public API serves data directly from S3 via API Gateway + CloudFront.

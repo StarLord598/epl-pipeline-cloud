@@ -90,9 +90,9 @@ export default function StatsPage() {
           </div>
         </div>
         <DataSourceBadge
-          pattern="Kimball Dimension"
-          source="Gold: dim_teams + mart_live_league_table"
-          explanation="Kimball dimension modeling — dim_teams classifies all 20 teams into tiers (Title Contender, European, Mid-table, Relegation Zone) with conformed attributes. Radar charts pull from multiple fact tables joined through this shared dimension, enabling cross-metric team comparisons."
+          pattern="Conformed Dimension (Kimball)"
+          source="Gold: dim_teams (conformed) + mart_live_league_table (fact) — multi-fact join"
+          explanation="Conformed dimension modeling — dim_teams is a shared dimension across all fact tables, classifying teams into tiers (Title Contender, European, Mid-table, Relegation Zone) with stable surrogate keys and descriptive attributes. Radar charts join multiple fact tables through this single conformed dimension, enabling cross-metric comparisons without fan traps. This is the Kimball bus architecture in action. Runs on AWS: S3 → Glue Catalog → Athena multi-table joins."
         />
       </div>
 

@@ -132,8 +132,8 @@ export default function FormPage() {
         </div>
         <DataSourceBadge
           pattern="Rolling Window + SCD Type 2"
-          source="Gold: mart_rolling_form + mart_scd2_standings"
-          explanation="Two patterns: (1) Rolling Window — AVG(points) OVER (ROWS BETWEEN 4 PRECEDING AND CURRENT ROW) for 5-game PPG, classifying HOT/STEADY/COOLING/COLD. (2) SCD Type 2 — tracks every position change with valid_from/valid_to for point-in-time queries. Only creates a new version when position changes — consecutive matchdays at the same position collapse into one row."
+          source="Gold: mart_rolling_form (window fn) + mart_scd2_standings (slowly changing dimension)"
+          explanation="Two warehouse patterns: (1) Rolling Window — AVG(points) OVER (ROWS BETWEEN 4 PRECEDING AND CURRENT ROW) computes 5-game PPG, classifying teams as HOT/STEADY/COOLING/COLD. (2) SCD Type 2 — tracks every league position change with valid_from/valid_to/is_current columns for point-in-time queries ('Where was Arsenal on Matchday 20?'). Only creates new version rows when position actually changes — consecutive matchdays at the same position collapse into one record. Runs on AWS: Lambda → S3 → Athena window functions."
         />
       </div>
 

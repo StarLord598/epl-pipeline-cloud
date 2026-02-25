@@ -69,9 +69,9 @@ export default async function LeagueTablePage() {
           </div>
         </div>
         <DataSourceBadge
-          pattern="Fact Table"
+          pattern="Fact Table (Kimball)"
           source="Gold: mart_live_league_table → stg_live_standings → raw.live_standings"
-          explanation="Aggregated fact table in the Gold layer. Raw API snapshots (append-only Bronze) are deduplicated in Silver via ROW_NUMBER() OVER (PARTITION BY team_name ORDER BY ingested_at DESC), then enriched with derived metrics (win rate, PPG, points %). Full medallion: Bronze → Silver → Gold."
+          explanation="Aggregated fact table following Kimball methodology. Raw API snapshots land in the Bronze layer (append-only) on S3, are deduplicated in Silver via ROW_NUMBER() OVER (PARTITION BY team_name ORDER BY ingested_at DESC), then enriched in Gold with derived metrics (win rate, PPG, points %). Full medallion architecture: Bronze → Silver → Gold. Runs on AWS: Lambda ingests on EventBridge schedule → S3 data lake (Parquet) → Glue Catalog → Athena SQL → API Gateway + CloudFront → ECS Fargate dashboard."
         />
       </div>
 
