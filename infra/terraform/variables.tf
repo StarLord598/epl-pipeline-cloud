@@ -46,3 +46,17 @@ variable "github_repo" {
   type        = string
   default     = "epl-pipeline-cloud"
 }
+
+# ─── Redshift Serverless ─────────────────────────────────────────────────────
+
+variable "redshift_admin_username" {
+  description = "Admin username for Redshift Serverless"
+  type        = string
+  default     = "admin"
+}
+
+variable "redshift_base_capacity" {
+  description = "Base RPU capacity for Redshift Serverless (minimum 8)"
+  type        = number
+  default     = 8
+}

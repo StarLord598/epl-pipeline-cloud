@@ -406,6 +406,7 @@ The pipeline includes an optional **AWS cloud deployment** that runs the same in
 | Monitoring | CloudWatch + SNS | Dashboard, alarms, notifications |
 | Catalog | Glue Catalog | Schema-on-read for Athena |
 | Query Engine | Athena | SQL analytics on S3 data |
+| Analytics Warehouse | Redshift Serverless | 8 RPU, scales to zero — $0 when idle |
 | Secrets | Secrets Manager | API key storage |
 | IaC | Terraform | All infrastructure as code |
 | CI/CD | GitHub Actions | OIDC-based deployment (no static keys) |
@@ -450,4 +451,4 @@ Estimated **~$2.20/month** for dev environment. See [docs/AWS_ARCHITECTURE.md](d
 
 ### Local vs Cloud
 
-Both targets work simultaneously — `dbt run` uses DuckDB locally, `dbt run --target cloud` uses Athena. The dashboard continues to serve from local JSON exports. The public API serves data directly from S3 via API Gateway + CloudFront.
+All three targets work simultaneously — `dbt run` uses DuckDB locally, `dbt run --target cloud` uses Athena, `dbt run --target redshift` uses Redshift Serverless. The dashboard continues to serve from local JSON exports. The public API serves data directly from S3 via API Gateway + CloudFront.

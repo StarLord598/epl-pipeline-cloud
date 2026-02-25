@@ -2,7 +2,7 @@
 
 ## Overview
 
-The cloud layer extends the existing local DuckDB + Airflow pipeline to run on AWS, using a serverless architecture with S3 data lake, Lambda for ingestion, Glue Catalog for metadata, Athena for querying, Step Functions for orchestration, API Gateway + CloudFront for public API access, and CloudWatch for monitoring.
+The cloud layer extends the existing local DuckDB + Airflow pipeline to run on AWS, using a serverless architecture with S3 data lake, Lambda for ingestion, Glue Catalog for metadata, Athena for querying, **Redshift Serverless for analytics warehousing**, Step Functions for orchestration, API Gateway + CloudFront for public API access, and CloudWatch for monitoring.
 
 ## Architecture Diagram
 
@@ -51,6 +51,13 @@ graph TB
         GC[AWS Glue Catalog]
         ATH[Amazon Athena]
         DBT[dbt cloud target<br/>dbt-athena-community]
+    end
+
+    subgraph "Analytics Warehouse — Redshift Serverless"
+        RS_NS[Namespace<br/>epl-pipeline-dev]
+        RS_WG[Workgroup<br/>8 RPU base<br/>scales to zero]
+        RS_DBT[dbt redshift target<br/>dbt-redshift]
+        L6[s3_to_redshift<br/>COPY from S3]
     end
 
     subgraph "Secrets & Auth"
@@ -106,11 +113,18 @@ graph TB
     SFN --> CW
     ALARMS --> SNS_A
 
+    RAW --> L6
+    L6 --> RS_NS
+    RS_NS --> RS_WG
+    RS_WG --> RS_DBT
+    RS_DBT --> MART
+
     GHA --> TF
     GHA -->|deploy| L1
     GHA -->|deploy| L2
     GHA -->|deploy| L3
 
+    style RS_WG fill:#8e44ad,color:#fff
     style RAW fill:#ff6b6b,color:#fff
     style STG fill:#ffd93d,color:#333
     style MART fill:#6bcb77,color:#fff
@@ -138,6 +152,7 @@ graph TB
 | `backfill` | Weekly Monday (EventBridge) | football-data.org | Full season backfill |
 | `data_quality` | Step Functions | S3 | Validates row counts, schema, nulls |
 | `api` | API Gateway | S3 | Serves standings, scorers, matches, health |
+| `s3_to_redshift` | Step Functions / manual | S3 → Redshift | COPY JSON from S3 into Redshift raw tables |
 
 ### Step Functions Pipeline
 
@@ -195,6 +210,12 @@ CloudFront provides HTTPS, caching, and is custom-domain-ready (add ACM cert).
 | Lambda Exec Role | IAM | Least-privilege execution |
 | SFN Exec Role | IAM | Step Functions permissions |
 | EventBridge SFN Role | IAM | EventBridge→SFN trigger |
+| Redshift Namespace | Redshift Serverless | Analytics database (epl-pipeline-dev) |
+| Redshift Workgroup | Redshift Serverless | Compute (8 RPU base, scales to zero) |
+| Redshift S3 Role | IAM | Redshift COPY from S3 |
+| S3→Redshift Lambda | Lambda | Load S3 JSON into Redshift raw tables |
+| Redshift Admin Secret | Secrets Manager | Admin credentials |
+| Redshift Security Group | VPC | Inbound 5439 for dbt/dashboards |
 | GitHub OIDC Role | IAM | CI/CD without static keys |
 
 ## Local vs Cloud
@@ -206,8 +227,8 @@ The cloud layer is **additive** — the existing local pipeline continues to wor
 | Storage | DuckDB | S3 + Parquet |
 | Orchestration | Airflow | Step Functions + EventBridge |
 | Ingestion | Python scripts | Lambda functions |
-| Query Engine | DuckDB | Athena |
-| dbt Target | `local` (DuckDB) | `cloud` (Athena) |
+| Query Engine | DuckDB | Athena + Redshift Serverless |
+| dbt Target | `local` (DuckDB) | `cloud` (Athena) / `redshift` |
 | Dashboard | Next.js (JSON files) | Next.js (JSON files) |
 | Public API | Flask/FastAPI (local) | API Gateway + CloudFront |
 | Monitoring | — | CloudWatch Dashboard + Alarms |
@@ -226,7 +247,8 @@ The cloud layer is **additive** — the existing local pipeline continues to wor
 | CloudWatch | ~$0.00 (free tier: 10 alarms, 3 dashboards) |
 | SNS | ~$0.00 (free tier: 1M publishes) |
 | EventBridge | Free tier |
-| **Total** | **~$2.20/mo** |
+| Redshift Serverless | ~$0.00 (scales to zero when idle; ~$3/hr when active) |
+| **Total** | **~$2.20/mo** (+ Redshift only when querying) |
 
 ## Setup
 
