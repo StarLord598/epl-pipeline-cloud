@@ -1,0 +1,313 @@
+{
+  "nodes": [
+    {
+      "id": "source.epl_pipeline.raw.matches",
+      "name": "matches",
+      "resource_type": "source",
+      "layer": "source",
+      "description": "Historical EPL match results from StatsBomb Open Data. Batch-loaded, covers multiple seasons.",
+      "columns": 17,
+      "materialized": "view"
+    },
+    {
+      "id": "source.epl_pipeline.raw.events",
+      "name": "events",
+      "resource_type": "source",
+      "layer": "source",
+      "description": "Match events from StatsBomb Open Data \u2014 passes, shots, tackles, goals, cards. 129K+ rows covering detailed in-match acti",
+      "columns": 18,
+      "materialized": "view"
+    },
+    {
+      "id": "source.epl_pipeline.raw.lineups",
+      "name": "lineups",
+      "resource_type": "source",
+      "layer": "source",
+      "description": "Match lineups from StatsBomb Open Data \u2014 starting XI and substitutes per match.",
+      "columns": 10,
+      "materialized": "view"
+    },
+    {
+      "id": "source.epl_pipeline.raw.top_scorers",
+      "name": "top_scorers",
+      "resource_type": "source",
+      "layer": "source",
+      "description": "Top scorers for the 2023-24 EPL season. Includes goals, assists, penalty goals, and per-game metrics.",
+      "columns": 11,
+      "materialized": "view"
+    },
+    {
+      "id": "source.epl_pipeline.raw.live_standings",
+      "name": "live_standings",
+      "resource_type": "source",
+      "layer": "source",
+      "description": "Live EPL standings from football-data.org API. Append-only \u2014 every 15-min poll appends a full snapshot. Multiple rows pe",
+      "columns": 16,
+      "materialized": "view"
+    },
+    {
+      "id": "source.epl_pipeline.raw.live_matches",
+      "name": "live_matches",
+      "resource_type": "source",
+      "layer": "source",
+      "description": "Live EPL match data from football-data.org API. Append-only \u2014 every 15-min poll appends rows for matches in the current ",
+      "columns": 14,
+      "materialized": "view"
+    },
+    {
+      "id": "source.epl_pipeline.raw.pipeline_runs",
+      "name": "pipeline_runs",
+      "resource_type": "source",
+      "layer": "source",
+      "description": "Pipeline execution log \u2014 tracks each ingestion run with status, row counts, and timing. Used for operational monitoring.",
+      "columns": 6,
+      "materialized": "view"
+    },
+    {
+      "id": "source.epl_pipeline.raw.player_stats",
+      "name": "player_stats",
+      "resource_type": "source",
+      "layer": "source",
+      "description": "Aggregated player statistics per match \u2014 event counts and position data derived from StatsBomb events.",
+      "columns": 9,
+      "materialized": "view"
+    },
+    {
+      "id": "source.epl_pipeline.raw.stadium_weather",
+      "name": "stadium_weather",
+      "resource_type": "source",
+      "layer": "source",
+      "description": "Raw weather readings for EPL stadiums from Open-Meteo API. Append-only.",
+      "columns": 11,
+      "materialized": "view"
+    },
+    {
+      "id": "model.epl_pipeline.stg_top_scorers",
+      "name": "stg_top_scorers",
+      "resource_type": "model",
+      "layer": "staging",
+      "description": "Top scorers cleaned from raw.top_scorers. One row per player with per-game metrics.\n",
+      "columns": 9,
+      "materialized": "view"
+    },
+    {
+      "id": "model.epl_pipeline.stg_live_standings",
+      "name": "stg_live_standings",
+      "resource_type": "model",
+      "layer": "staging",
+      "description": "Silver layer: cleaned live EPL standings. Deduplicates raw.live_standings using ROW_NUMBER() OVER (PARTITION BY team_nam",
+      "columns": 18,
+      "materialized": "view"
+    },
+    {
+      "id": "model.epl_pipeline.stg_stadium_weather",
+      "name": "stg_stadium_weather",
+      "resource_type": "model",
+      "layer": "staging",
+      "description": "Silver layer: latest weather per stadium. Deduplicates by team_name, keeps most recent.\n",
+      "columns": 9,
+      "materialized": "view"
+    },
+    {
+      "id": "model.epl_pipeline.stg_live_matches",
+      "name": "stg_live_matches",
+      "resource_type": "model",
+      "layer": "staging",
+      "description": "Silver layer: cleaned live EPL matches. Deduplicates raw.live_matches using ROW_NUMBER() OVER (PARTITION BY match_id ORD",
+      "columns": 15,
+      "materialized": "view"
+    },
+    {
+      "id": "model.epl_pipeline.stg_matches",
+      "name": "stg_matches",
+      "resource_type": "model",
+      "layer": "staging",
+      "description": "Cleaned historical EPL matches with derived winner field. Deduplicates raw.matches by match_id. Adds computed winner col",
+      "columns": 17,
+      "materialized": "view"
+    },
+    {
+      "id": "model.epl_pipeline.stg_standings",
+      "name": "stg_standings",
+      "resource_type": "model",
+      "layer": "staging",
+      "description": "Historical EPL standings derived from raw.standings. Normalized team names and computed metrics. One row per team.\n",
+      "columns": 10,
+      "materialized": "view"
+    },
+    {
+      "id": "model.epl_pipeline.dim_teams",
+      "name": "dim_teams",
+      "resource_type": "model",
+      "layer": "dimension",
+      "description": "Kimball-style team dimension. Combines current standings (mart_live_league_table) with season-long form analysis (mart_r",
+      "columns": 16,
+      "materialized": "table"
+    },
+    {
+      "id": "model.epl_pipeline.mart_scd2_standings",
+      "name": "mart_scd2_standings",
+      "resource_type": "model",
+      "layer": "mart",
+      "description": "SCD Type 2 \u2014 League position history tracking. Reconstructs standings at each matchday by computing cumulative points/GD",
+      "columns": 13,
+      "materialized": "table"
+    },
+    {
+      "id": "model.epl_pipeline.mart_scd1_matches",
+      "name": "mart_scd1_matches",
+      "resource_type": "model",
+      "layer": "mart",
+      "description": "SCD Type 1 \u2014 latest state per match with correction tracking. Tracks first_seen_at, last_updated_at, update_count, and i",
+      "columns": 11,
+      "materialized": "table"
+    },
+    {
+      "id": "model.epl_pipeline.dim_matchdays",
+      "name": "dim_matchdays",
+      "resource_type": "model",
+      "layer": "dimension",
+      "description": "Matchday schedule dimension. One row per gameweek (38 total). Tracks match counts (completed/scheduled/live), date range",
+      "columns": 11,
+      "materialized": "table"
+    },
+    {
+      "id": "model.epl_pipeline.mart_stadium_weather",
+      "name": "mart_stadium_weather",
+      "resource_type": "model",
+      "layer": "mart",
+      "description": "Stadium weather enriched with team dimension data. Includes pitch condition classification and temperature comfort level",
+      "columns": 11,
+      "materialized": "table"
+    },
+    {
+      "id": "model.epl_pipeline.mart_live_league_table",
+      "name": "mart_live_league_table",
+      "resource_type": "model",
+      "layer": "mart",
+      "description": "Live EPL league table (Gold) for the 2025-26 season. Sourced from stg_live_standings. Adds qualification zone classifica",
+      "columns": 14,
+      "materialized": "table"
+    },
+    {
+      "id": "model.epl_pipeline.mart_recent_results",
+      "name": "mart_recent_results",
+      "resource_type": "model",
+      "layer": "mart",
+      "description": "EPL match results with derived home/away result indicators. Incremental model \u2014 appends new results, never rebuilds exis",
+      "columns": 7,
+      "materialized": "incremental"
+    },
+    {
+      "id": "model.epl_pipeline.mart_top_scorers",
+      "name": "mart_top_scorers",
+      "resource_type": "model",
+      "layer": "mart",
+      "description": "EPL top scorers with per-game stats and ranking. Sourced from stg_top_scorers. Adds rank, goals_per_game, and penalty pe",
+      "columns": 8,
+      "materialized": "table"
+    },
+    {
+      "id": "model.epl_pipeline.mart_league_table",
+      "name": "mart_league_table",
+      "resource_type": "model",
+      "layer": "mart",
+      "description": "Historical EPL league table (2023-24) with calculated performance metrics. Sourced from stg_standings. Includes win rate",
+      "columns": 13,
+      "materialized": "table"
+    },
+    {
+      "id": "model.epl_pipeline.mart_live_matches",
+      "name": "mart_live_matches",
+      "resource_type": "model",
+      "layer": "mart",
+      "description": "Live EPL matches (Gold) for the 2025-26 season. One row per match (380 total). Sourced from stg_live_matches. Includes a",
+      "columns": 9,
+      "materialized": "table"
+    },
+    {
+      "id": "model.epl_pipeline.mart_points_race",
+      "name": "mart_points_race",
+      "resource_type": "model",
+      "layer": "mart",
+      "description": "Cumulative points race \u2014 shows each team's point total at every matchday. Designed for a line chart visualization (like ",
+      "columns": 4,
+      "materialized": "table"
+    },
+    {
+      "id": "model.epl_pipeline.mart_rolling_form",
+      "name": "mart_rolling_form",
+      "resource_type": "model",
+      "layer": "mart",
+      "description": "Rolling 5-game form analysis with momentum classification. Computes rolling average PPG, goals scored/conceded over the ",
+      "columns": 12,
+      "materialized": "table"
+    }
+  ],
+  "edges": [
+    {
+      "source": "source.epl_pipeline.raw.top_scorers",
+      "target": "model.epl_pipeline.stg_top_scorers"
+    },
+    {
+      "source": "source.epl_pipeline.raw.live_standings",
+      "target": "model.epl_pipeline.stg_live_standings"
+    },
+    {
+      "source": "source.epl_pipeline.raw.stadium_weather",
+      "target": "model.epl_pipeline.stg_stadium_weather"
+    },
+    {
+      "source": "source.epl_pipeline.raw.live_matches",
+      "target": "model.epl_pipeline.stg_live_matches"
+    },
+    {
+      "source": "source.epl_pipeline.raw.matches",
+      "target": "model.epl_pipeline.stg_matches"
+    },
+    {
+      "source": "model.epl_pipeline.stg_matches",
+      "target": "model.epl_pipeline.stg_standings"
+    },
+    {
+      "source": "model.epl_pipeline.mart_live_league_table",
+      "target": "model.epl_pipeline.dim_teams"
+    },
+    {
+      "source": "model.epl_pipeline.mart_rolling_form",
+      "target": "model.epl_pipeline.dim_teams"
+    },
+    {
+      "source": "model.epl_pipeline.stg_live_matches",
+      "target": "model.epl_pipeline.mart_scd1_matches"
+    },
+    {
+      "source": "model.epl_pipeline.stg_stadium_weather",
+      "target": "model.epl_pipeline.mart_stadium_weather"
+    },
+    {
+      "source": "model.epl_pipeline.dim_teams",
+      "target": "model.epl_pipeline.mart_stadium_weather"
+    },
+    {
+      "source": "model.epl_pipeline.stg_live_standings",
+      "target": "model.epl_pipeline.mart_live_league_table"
+    },
+    {
+      "source": "model.epl_pipeline.stg_matches",
+      "target": "model.epl_pipeline.mart_recent_results"
+    },
+    {
+      "source": "model.epl_pipeline.stg_top_scorers",
+      "target": "model.epl_pipeline.mart_top_scorers"
+    },
+    {
+      "source": "model.epl_pipeline.stg_standings",
+      "target": "model.epl_pipeline.mart_league_table"
+    },
+    {
+      "source": "model.epl_pipeline.stg_live_matches",
+      "target": "model.epl_pipeline.mart_live_matches"
+    }
+  ]
+}
