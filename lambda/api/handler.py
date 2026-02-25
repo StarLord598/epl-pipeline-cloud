@@ -32,8 +32,8 @@ CORS_HEADERS = {
 
 # S3 prefix mapping for each endpoint
 ENDPOINT_MAP = {
-    "/standings": "staging/standings/",
-    "/scorers": "staging/top_scorers/",
+    "/standings": "raw/standings/",
+    "/scorers": "raw/top_scorers/",
     "/matches": "raw/matches/",
 }
 

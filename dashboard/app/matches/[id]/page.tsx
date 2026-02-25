@@ -4,6 +4,8 @@ import Link from "next/link";
 import { MatchResult, MatchEvent } from "@/lib/data";
 import TeamBadge from "@/components/TeamBadge";
 
+export const dynamic = "force-dynamic";
+
 async function getMatch(id: string): Promise<MatchResult | null> {
   const filePath = path.join(process.cwd(), "public", "data", "matches.json");
   const raw = await fs.readFile(filePath, "utf-8");

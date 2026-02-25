@@ -75,29 +75,4 @@ output "sns_notifications_topic_arn" {
   value       = aws_sns_topic.pipeline_notifications.arn
 }
 
-# ─── Redshift Serverless Outputs ─────────────────────────────────────────────
 
-output "redshift_endpoint" {
-  description = "Redshift Serverless workgroup endpoint"
-  value       = aws_redshiftserverless_workgroup.epl.endpoint[0].address
-}
-
-output "redshift_workgroup" {
-  description = "Redshift Serverless workgroup name"
-  value       = aws_redshiftserverless_workgroup.epl.workgroup_name
-}
-
-output "redshift_namespace" {
-  description = "Redshift Serverless namespace name"
-  value       = aws_redshiftserverless_namespace.epl.namespace_name
-}
-
-output "redshift_s3_role_arn" {
-  description = "IAM role ARN for Redshift S3 access (COPY command)"
-  value       = aws_iam_role.redshift_s3_access.arn
-}
-
-output "lambda_s3_to_redshift_arn" {
-  description = "S3→Redshift loader Lambda ARN"
-  value       = aws_lambda_function.s3_to_redshift.arn
-}
