@@ -217,8 +217,8 @@ export default function StreamPage() {
         </div>
         <DataSourceBadge
           pattern="Event Streaming (SSE)"
-          source="StatsBomb Events (129K) → SSE Producer → Dashboard Consumer"
-          explanation="True streaming pattern via Server-Sent Events. A producer replays historical match events over a persistent HTTP connection — the dashboard consumes them in real-time without polling. Same concept as Kafka producer → consumer, but built with SSE for local demo. Events arrive with real match timing (adjustable speed), demonstrating event-driven architecture."
+          source="StatsBomb Events (129K) → Next.js SSE on ECS Fargate → Client-side real-time consumer"
+          explanation="True streaming pattern via Server-Sent Events, hosted on AWS ECS Fargate. A producer replays historical match events over a persistent HTTP connection through CloudFront — the dashboard consumes them in real-time without polling. Same concept as Kafka/Kinesis producer → consumer, but built with SSE for cost-effective serverless demo. Events arrive with real match timing (adjustable speed), demonstrating event-driven architecture on cloud infrastructure."
         />
       </div>
 
@@ -488,7 +488,7 @@ export default function StreamPage() {
           <div className="glass rounded-2xl p-4 sm:p-5 border border-white/[0.06]">
             <h2 className="text-[11px] font-medium text-gray-500 mb-2 uppercase tracking-wider">Architecture</h2>
             <div className="text-[11px] text-gray-500 space-y-1 font-mono">
-              <p>Producer: Next.js SSE endpoint</p>
+              <p>Producer: Next.js SSE on ECS Fargate</p>
               <p>Transport: EventSource (HTTP/1.1)</p>
               <p>Consumer: React state updates</p>
               <p>Pattern: Event-driven streaming</p>

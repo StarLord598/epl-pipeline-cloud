@@ -316,8 +316,8 @@ export default function LivePage() {
         </div>
         <DataSourceBadge
           pattern="Real-Time Ingestion"
-          source="Gold: mart_live_matches → stg_live_matches → raw.live_matches"
-          explanation="CDC-like pattern — football-data.org API polled every 15 min on matchdays via Airflow. Each poll appends to Bronze (append-only). Silver deduplicates via ROW_NUMBER() PARTITION BY match_id. ShortCircuitOperator skips non-matchdays to conserve API quota."
+          source="AWS Lambda (live_matches) → S3 Data Lake → Glue Catalog → Athena → API Gateway + CloudFront"
+          explanation="CDC-like pattern on AWS — Lambda polls football-data.org API every 15 min on matchdays via EventBridge scheduled rule. Each poll writes to S3 data lake as append-only Parquet (Bronze layer). Silver layer deduplicates via ROW_NUMBER() PARTITION BY match_id in Athena. Step Functions orchestrates the full pipeline. Non-matchday invocations short-circuit to conserve API quota and Lambda costs."
         />
       </div>
 
@@ -360,7 +360,7 @@ export default function LivePage() {
             <div className="w-2 h-2 rounded-full bg-[#00ff85] animate-pulse" />
           </div>
           <div>
-            <p className="text-sm text-gray-300">Airflow Pipeline</p>
+            <p className="text-sm text-gray-300">AWS Step Functions Pipeline</p>
             <p className="text-[11px] text-gray-600">Data refreshes every 15 minutes via live_poll_15m DAG</p>
           </div>
         </div>

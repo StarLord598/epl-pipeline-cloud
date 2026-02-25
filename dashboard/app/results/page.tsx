@@ -83,8 +83,8 @@ export default function ResultsPage() {
         </div>
         <DataSourceBadge
           pattern="Incremental Model"
-          source="Gold: mart_recent_results (incremental) → stg_live_matches"
-          explanation="dbt incremental materialization — only processes new matches since last run using WHERE ingested_at > (SELECT MAX(ingested_at) FROM this). Avoids full table rebuilds on each pipeline run. Idempotent and efficient for append-heavy match data."
+          source="AWS Lambda (daily_ingest) → S3 Data Lake (date-partitioned Parquet) → Athena incremental query"
+          explanation="Incremental processing on AWS — Lambda writes new match data to date-partitioned Parquet on S3. Athena queries only new partitions since last run (WHERE partition_date > last_processed), avoiding full table scans. S3 lifecycle policies manage data retention. Orchestrated by Step Functions, served via API Gateway + CloudFront to ECS Fargate dashboard."
         />
       </div>
 

@@ -79,8 +79,8 @@ export default function ScorersPage() {
         </div>
         <DataSourceBadge
           pattern="Star Schema"
-          source="Gold: mart_top_scorers → stg_top_scorers → raw.top_scorers"
-          explanation="Kimball star schema — mart_top_scorers is a fact table with player metrics (goals, assists, per-game rates). Joins with dim_teams for team context. Enables slice-and-dice analysis by team, position, and contribution type."
+          source="AWS Lambda → S3 Data Lake (Parquet) → Glue Catalog (schema registry) → Athena SQL joins"
+          explanation="Kimball star schema on AWS — Lambda ingests scorer data to S3, Glue Catalog registers table schemas, Athena performs star-schema joins between fact (scorers) and dimension (teams) tables. Player metrics (goals, assists, per-game rates) join with dim_teams via Glue for team context. Data served through API Gateway + CloudFront CDN to the ECS Fargate dashboard."
         />
       </div>
 
