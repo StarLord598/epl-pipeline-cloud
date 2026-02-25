@@ -47,22 +47,4 @@ variable "github_repo" {
   default     = "epl-pipeline-cloud"
 }
 
-# ─── Redshift Serverless ─────────────────────────────────────────────────────
 
-variable "redshift_admin_username" {
-  description = "Admin username for Redshift Serverless"
-  type        = string
-  default     = "admin"
-}
-
-variable "redshift_base_capacity" {
-  description = "Base RPU capacity for Redshift Serverless (minimum 8)"
-  type        = number
-  default     = 8
-}
-
-variable "redshift_allowed_cidrs" {
-  description = "CIDR blocks allowed to connect to Redshift (default: open for portfolio demo, restrict in production)"
-  type        = list(string)
-  default     = ["0.0.0.0/0"]
-}
