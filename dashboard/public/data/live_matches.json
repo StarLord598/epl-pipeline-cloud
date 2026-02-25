@@ -1,0 +1,15 @@
+[
+  {
+    "match_id": "538064",
+    "utc_date": "2026-02-27T20:00:00",
+    "status": "SCHEDULED",
+    "minute": null,
+    "home_team": "Wolverhampton Wanderers",
+    "away_team": "Aston Villa",
+    "home_score": 0,
+    "away_score": 0,
+    "competition": "Premier League",
+    "matchday": 8,
+    "ingested_at": "2026-02-25T14:04:17.014278"
+  }
+]

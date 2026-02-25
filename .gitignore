@@ -38,7 +38,6 @@ _cloud_archive/
 
 # dbt docs (generated, regenerate with make docs)
 dashboard/public/lineage/
-dashboard/public/data/stream_events.json
 
 # Terraform
 infra/terraform/.terraform/
@@ -52,9 +51,10 @@ infra/terraform/tfplan.*
 lambda/*/package/
 lambda/*/*.zip
 
-# Dashboard data (generated from pipeline)
-dashboard/public/data/*.json
-!dashboard/public/data/.gitkeep
+# Dashboard data (large generated files)
+dashboard/public/data/stream_events.json
+dashboard/public/data/dim_*.json
+dashboard/public/data/events_matches.json
 
 # Build artifacts
 .build/
