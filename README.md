@@ -197,20 +197,20 @@ cp .env.example .env
 
 **Live:** [andres-alvarez-de-cloud-epl-analytics.vercel.app](https://andres-alvarez-de-cloud-epl-analytics.vercel.app)
 
-| Page | Route | DW Pattern | Description |
-|------|-------|------------|-------------|
-| 🏆 **League Table** | `/` | Fact Table (Kimball) | Live 2025-26 standings with qualification zones, form, per-game stats |
-| 📈 **Points Race** | `/race` | Accumulating Snapshot | Interactive line chart — cumulative points across matchdays |
-| 🔥 **Form & Momentum** | `/form` | Rolling Window + SCD2 | Hot/Cold momentum panel (rolling 5-game PPG) + position history |
-| ⚡ **Live Matches** | `/live` | Transaction Fact (CDC) | Real-time scores with status badges (LIVE/HT/FT), auto-refresh |
-| ⚽ **Results** | `/results` | Incremental Fact Table | Match results browseable by gameweek |
-| 🎯 **Top Scorers** | `/scorers` | Star Schema (Kimball) | Golden Boot race with bar charts |
-| 📊 **Stats** | `/stats` | Conformed Dimension | Radar charts, team comparisons (select up to 4 teams) |
-| 📡 **Streaming Replay** | `/stream` | Event Streaming (Kafka pattern) | SSE-powered match replay — live event feed, possession bar, scoreboard |
-| 🌤️ **Stadium Weather** | `/weather` | Live API Integration | Near real-time weather at all 20 EPL stadiums — pitch conditions |
-| 🛡️ **Data Quality** | `/quality` | Data Observability | Test pass rates, freshness SLAs, medallion inventory |
-| 🔗 **Data Lineage** | `/lineage` | DAG Visualization | Interactive dbt docs — full dependency graph for all 18 models |
-| 🏥 **Pipeline Health** | `/health` | Operational Dashboard | AWS cloud resource status + pipeline monitoring |
+| Page | Route | DW Pattern | Data Refresh | Description |
+|------|-------|------------|-------------|-------------|
+| 🏆 **League Table** | `/` | Fact Table (Kimball) | ⚡ Every 15 min (live poll) + hourly | Live 2025-26 standings with qualification zones, form, per-game stats |
+| 📈 **Points Race** | `/race` | Accumulating Snapshot | 🔄 Every 30 min (dbt transform) | Interactive line chart — cumulative points across matchdays |
+| 🔥 **Form & Momentum** | `/form` | Rolling Window + SCD2 | 🔄 Every 30 min (dbt transform) | Hot/Cold momentum panel (rolling 5-game PPG) + position history |
+| ⚡ **Live Matches** | `/live` | Transaction Fact (CDC) | ⚡ Every 15 min (matchday-aware) | Real-time scores with status badges (LIVE/HT/FT), auto-refresh |
+| ⚽ **Results** | `/results` | Incremental Fact Table | 🔄 Every 30 min (dbt incremental) | Match results browseable by gameweek |
+| 🎯 **Top Scorers** | `/scorers` | Star Schema (Kimball) | 🕐 Hourly refresh | Golden Boot race with bar charts |
+| 📊 **Stats** | `/stats` | Conformed Dimension | 🔄 Every 30 min (dbt transform) | Radar charts, team comparisons (select up to 4 teams) |
+| 📡 **Streaming Replay** | `/stream` | Event Streaming (Kafka pattern) | 📅 Daily at 6 AM (StatsBomb batch) | SSE-powered match replay — live event feed, possession bar, scoreboard |
+| 🌤️ **Stadium Weather** | `/weather` | Live API Integration | 🌀 Every 5 min (Open-Meteo) | Near real-time weather at all 20 EPL stadiums — pitch conditions |
+| 🛡️ **Data Quality** | `/quality` | Data Observability | 🔄 Every 30 min (dbt test suite) | Test pass rates, freshness SLAs, medallion inventory |
+| 🔗 **Data Lineage** | `/lineage` | DAG Visualization | 🏗️ On dbt build | Interactive dbt docs — full dependency graph for all 18 models |
+| 🏥 **Pipeline Health** | `/health` | Operational Dashboard | 📡 On-demand (live API check) | AWS cloud resource status + pipeline monitoring |
 
 ---
 
@@ -397,6 +397,40 @@ epl-pipeline-cloud/
 
 ---
 
+## 🏛️ Data Governance
+
+Production data platforms aren't just about moving data — they need **discoverability, documentation, lineage, and quality enforcement**. This project implements all four:
+
+### Data Catalog & Documentation
+- **150+ columns fully documented** in dbt `schema.yml` files with human-readable descriptions
+- **18 models documented** with business context: what they represent, how they're derived, and who consumes them
+- **7 sources declared** with explicit `loaded_at_field` references for freshness tracking
+- **dbt docs site** auto-generated and served at [`/dbt-docs/index.html`](https://andres-alvarez-de-cloud-epl-analytics.vercel.app/dbt-docs/index.html) — full searchable catalog with column-level descriptions, tests, and relationships
+- **AWS Glue Catalog** provides schema-on-read metadata for the cloud layer (Athena queries)
+
+### Data Lineage
+- **Native lineage visualization** at [`/lineage`](https://andres-alvarez-de-cloud-epl-analytics.vercel.app/lineage) — interactive DAG built with `@xyflow/react` + dagre auto-layout
+- **27 nodes, 16 edges** mapping the full dependency graph: 9 raw sources → 6 staging models → 2 dimensions → 12 mart models
+- **Color-coded by medallion layer**: Bronze (green), Silver (blue), Gold (purple), Dimension (amber), Seed (gray)
+- **dbt manifest-driven** — lineage.json is generated directly from dbt's `manifest.json`, so the graph always reflects the actual SQL dependency tree
+- **dbt docs explorer** linked from the lineage page for deep-dive column-level lineage and test coverage per node
+
+### Quality Enforcement
+- **37 dbt tests** (uniqueness, not-null, accepted values, relationships) run every 30 minutes via the `dbt_transform` DAG
+- **Source freshness SLAs**: 1-hour warn / 4-hour error thresholds on all live tables — stale data gets flagged before it reaches Gold
+- **Schema contracts** (`contracts.py`) validate API responses at ingestion time — malformed batches are rejected before entering Bronze
+- **10% failure threshold** on contract validation blocks entire ingestion batch, preventing partial/corrupt data from propagating
+- **Quality dashboard** at [`/quality`](https://andres-alvarez-de-cloud-epl-analytics.vercel.app/quality) exposes test pass rates, freshness SLAs, and medallion inventory in real-time
+
+### Why This Matters
+In enterprise data platforms, **data trust** is the #1 challenge. This project demonstrates the same governance patterns used at scale:
+- **Discoverability** → Can a new team member find and understand any table? ✅ (dbt docs + catalog)
+- **Lineage** → If a source breaks, what downstream dashboards are affected? ✅ (DAG visualization)
+- **Quality** → How do we know the data is correct and fresh? ✅ (tests + freshness SLAs + contracts)
+- **Auditability** → Can we trace any Gold metric back to its raw source? ✅ (SCD2 history + Bronze audit trail)
+
+---
+
 ## 📈 Data Pipeline Details
 
 ### Medallion Architecture
@@ -423,12 +457,15 @@ epl-pipeline-cloud/
 
 ### Data Sources
 
-| Source | Data | Frequency | Records |
-|--------|------|-----------|---------|
-| football-data.org | Live scores, standings (2025-26) | Every 15 min | 380 matches, 20 teams |
-| StatsBomb Open Data | Historical match events | Daily batch | 129K+ events |
-| Open-Meteo | Stadium weather (20 venues) | Every 30 min | Real-time |
-| TheSportsDB | Fallback scores | On API failure | Auto-failover |
+| Source | Data | Frequency | Airflow DAG | Records |
+|--------|------|-----------|-------------|---------|
+| football-data.org | Live scores, standings (2025-26) | Every 15 min (matchday-aware) | `live_poll_15m` | 380 matches, 20 teams |
+| football-data.org | Standings, scorers | Hourly | `hourly_refresh` | 20 teams, 50+ scorers |
+| StatsBomb Open Data | Historical match events | Daily at 6 AM | `ingest_epl_local` | 129K+ events |
+| Open-Meteo | Stadium weather (20 venues) | Every 5 min | `weather_ingest` | 20 stadiums, real-time |
+| TheSportsDB | Fallback scores | On API failure | — | Auto-failover |
+| — | dbt transforms (all Gold models) | Every 30 min | `dbt_transform` | 18 models, 37 tests |
+| — | Full reconciliation rebuild | Daily at 2 AM | `daily_reconcile` | All layers |
 
 ---
 
