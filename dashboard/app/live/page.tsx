@@ -220,24 +220,82 @@ export default function LivePage() {
   const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
+    const API_BASE = process.env.NEXT_PUBLIC_CLOUD_API_URL || "https://dr81mm57l8sab.cloudfront.net";
     try {
+      // Try CloudFront API first
       const [mRes, sRes] = await Promise.all([
-        fetch("/data/live_matches.json", { cache: "no-store" }),
-        fetch("/data/live_standings.json", { cache: "no-store" }),
+        fetch(`${API_BASE}/matches`, { cache: "no-store" }).catch(() => null),
+        fetch(`${API_BASE}/standings`, { cache: "no-store" }).catch(() => null),
       ]);
 
-      if (mRes.ok) {
-        const data = await mRes.json();
-        setMatches(Array.isArray(data) ? data : []);
+      let matchesLoaded = false;
+      let standingsLoaded = false;
+
+      if (mRes?.ok) {
+        const apiData = await mRes.json();
+        const rawMatches = apiData?.data?.matches ?? apiData?.matches ?? [];
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const transformed = rawMatches.map((m: any) => ({
+          match_id: m.id,
+          matchday: m.matchday,
+          status: m.status,
+          utc_date: m.utcDate,
+          minute: null,
+          home_team: (m.homeTeam?.shortName ?? m.homeTeam?.name ?? "").replace(/ FC$/, ""),
+          away_team: (m.awayTeam?.shortName ?? m.awayTeam?.name ?? "").replace(/ FC$/, ""),
+          home_score: m.score?.fullTime?.home ?? null,
+          away_score: m.score?.fullTime?.away ?? null,
+          competition: "Premier League",
+        }));
+        setMatches(transformed);
+        matchesLoaded = true;
       }
-      if (sRes.ok) {
-        const data = await sRes.json();
-        setStandings(Array.isArray(data) ? data : []);
+
+      if (sRes?.ok) {
+        const apiData = await sRes.json();
+        const standings = apiData?.data?.standings ?? apiData?.standings ?? [];
+        const total = standings.find((s: { type: string }) => s.type === "TOTAL") ?? standings[0];
+        if (total?.table) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const transformed = total.table.map((t: any) => ({
+            position: t.position,
+            team_name: (t.team?.shortName ?? t.team?.name ?? "").replace(/ FC$/, ""),
+            played: t.playedGames,
+            won: t.won,
+            drawn: t.draw,
+            lost: t.lost,
+            points: t.points,
+            goals_for: t.goalsFor,
+            goals_against: t.goalsAgainst,
+            goal_difference: t.goalDifference,
+          }));
+          setStandings(transformed);
+          standingsLoaded = true;
+        }
+      }
+
+      // Fallback to static JSON for anything that failed
+      if (!matchesLoaded) {
+        const fallback = await fetch("/data/live_matches.json", { cache: "no-store" });
+        if (fallback.ok) { const data = await fallback.json(); setMatches(Array.isArray(data) ? data : []); }
+      }
+      if (!standingsLoaded) {
+        const fallback = await fetch("/data/live_standings.json", { cache: "no-store" });
+        if (fallback.ok) { const data = await fallback.json(); setStandings(Array.isArray(data) ? data : []); }
       }
 
       setLastUpdated(new Date());
     } catch {
-      // silently fail — data might not exist yet
+      // Full fallback to static JSON
+      try {
+        const [mRes, sRes] = await Promise.all([
+          fetch("/data/live_matches.json", { cache: "no-store" }),
+          fetch("/data/live_standings.json", { cache: "no-store" }),
+        ]);
+        if (mRes.ok) { const data = await mRes.json(); setMatches(Array.isArray(data) ? data : []); }
+        if (sRes.ok) { const data = await sRes.json(); setStandings(Array.isArray(data) ? data : []); }
+        setLastUpdated(new Date());
+      } catch { /* silently fail */ }
     } finally {
       setLoading(false);
     }

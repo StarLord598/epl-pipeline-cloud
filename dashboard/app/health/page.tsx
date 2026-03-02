@@ -1,6 +1,7 @@
 import Link from "next/link";
 import path from "path";
 import fs from "fs";
+import { API_BASE } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +13,32 @@ async function getHealth() {
   } catch {
     return null;
   }
+}
+
+interface CloudHealth {
+  status: string;
+  timestamp: string;
+  bucket: string;
+  checks: Record<string, { status: string; last_modified: string; size_bytes?: number }>;
+}
+
+async function getCloudHealth(): Promise<CloudHealth | null> {
+  try {
+    const res = await fetch(`${API_BASE}/health`, { cache: "no-store" });
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
+}
+
+function timeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ${mins % 60}m ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
 }
 
 /* ── AWS Cloud Resources ── */
@@ -77,7 +104,7 @@ function ResourceCard({ name, service, desc, icon, color }: { name: string; serv
 }
 
 export default async function HealthPage() {
-  const health = await getHealth();
+  const [health, cloudHealth] = await Promise.all([getHealth(), getCloudHealth()]);
 
   const totalResources = Object.values(AWS_RESOURCES).flat().length;
 
@@ -128,6 +155,42 @@ export default async function HealthPage() {
           </div>
         </div>
       </div>
+
+      {/* Cloud API Status */}
+      {cloudHealth && (
+        <div className="mt-6 glass rounded-2xl p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-[11px] text-gray-500 uppercase tracking-wider font-medium">Cloud API Status</h2>
+            <span className={`text-xs px-3 py-1 rounded-full font-medium border ${
+              cloudHealth.status === "healthy"
+                ? "bg-green-500/10 text-green-400 border-green-500/20"
+                : "bg-red-500/10 text-red-400 border-red-500/20"
+            }`}>
+              {cloudHealth.status === "healthy" ? "✓ Healthy" : "✗ Unhealthy"}
+            </span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {Object.entries(cloudHealth.checks).filter(([k]) => k !== "step_function").map(([key, check]) => (
+              <div key={key} className="glass rounded-xl p-3">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs text-gray-400 capitalize font-medium">{key}</span>
+                  <span className={`w-2 h-2 rounded-full ${check.status === "ok" ? "bg-green-400" : "bg-red-400"}`} />
+                </div>
+                <p className="text-[11px] text-gray-500">
+                  Last updated: <span className="text-gray-300">{check.last_modified ? timeAgo(check.last_modified) : "—"}</span>
+                </p>
+                {check.size_bytes && (
+                  <p className="text-[10px] text-gray-600 mt-0.5">{(check.size_bytes / 1024).toFixed(1)} KB</p>
+                )}
+              </div>
+            ))}
+          </div>
+          <p className="text-[10px] text-gray-600 mt-3">
+            Endpoint: <code className="px-1.5 py-0.5 bg-white/[0.04] rounded border border-white/[0.06]">{API_BASE}</code>
+            {" · "}Checked: {new Date(cloudHealth.timestamp).toLocaleString("en-US", { timeZone: "America/New_York" })} ET
+          </p>
+        </div>
+      )}
 
       {/* Cloud Pipeline Architecture */}
       <div className="mt-8 glass rounded-2xl p-4 sm:p-5">

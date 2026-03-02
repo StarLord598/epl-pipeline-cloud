@@ -13,28 +13,63 @@ export default function StatsPage() {
   const [selected, setSelected] = useState<string[]>(["Manchester City", "Arsenal", "Liverpool"]);
 
   useEffect(() => {
-    // Prefer live standings, fall back to league_table
-    fetch("/data/live_standings.json")
-      .then((r) => {
-        if (!r.ok) throw new Error("no live data");
-        return r.json();
-      })
-      .then((data: TeamStanding[]) => {
-        if (!Array.isArray(data) || data.length === 0) throw new Error("empty");
-        // Enrich with derived fields if missing
-        setTeams(data.map((t) => ({
-          ...t,
-          team_id: t.team_id ?? t.position,
-          team_name: (t.team_name || "").replace(/ FC$/, "").replace(/^AFC /, ""),
-          goal_difference: t.goal_difference ?? (t.goals_for - t.goals_against),
-          win_rate: t.win_rate ?? (t.played > 0 ? Math.round((t.won / t.played) * 1000) / 10 : 0),
-          points_pct: t.points_pct ?? (t.played > 0 ? Math.round((t.points / (t.played * 3)) * 1000) / 10 : 0),
-          goals_per_game: t.goals_per_game ?? (t.played > 0 ? Math.round((t.goals_for / t.played) * 100) / 100 : 0),
-          goals_conceded_per_game: t.goals_conceded_per_game ?? (t.played > 0 ? Math.round((t.goals_against / t.played) * 100) / 100 : 0),
-        })));
+    const API_BASE = process.env.NEXT_PUBLIC_CLOUD_API_URL || "https://dr81mm57l8sab.cloudfront.net";
+    // Try CloudFront API first, then fall back to static JSON
+    fetch(`${API_BASE}/standings`)
+      .then((r) => { if (!r.ok) throw new Error("API error"); return r.json(); })
+      .then((apiData) => {
+        const standings = apiData?.data?.standings ?? apiData?.standings ?? [];
+        const total = standings.find((s: { type: string }) => s.type === "TOTAL") ?? standings[0];
+        if (!total?.table?.length) throw new Error("empty");
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const transformed: TeamStanding[] = total.table.map((t: any) => {
+          const played = t.playedGames ?? 0;
+          const won = t.won ?? 0;
+          const gf = t.goalsFor ?? 0;
+          const ga = t.goalsAgainst ?? 0;
+          const pts = t.points ?? 0;
+          return {
+            position: t.position,
+            team_id: t.team?.id ?? t.position,
+            team_name: (t.team?.shortName ?? t.team?.name ?? "").replace(/ FC$/, "").replace(/^AFC /, ""),
+            tla: t.team?.tla ?? "",
+            played,
+            won,
+            drawn: t.draw ?? 0,
+            lost: t.lost ?? 0,
+            goals_for: gf,
+            goals_against: ga,
+            goal_difference: t.goalDifference ?? (gf - ga),
+            points: pts,
+            form: (t.form ?? "").replace(/,/g, " "),
+            win_rate: played > 0 ? Math.round((won / played) * 1000) / 10 : 0,
+            points_pct: played > 0 ? Math.round((pts / (played * 3)) * 1000) / 10 : 0,
+            goals_per_game: played > 0 ? Math.round((gf / played) * 100) / 100 : 0,
+            goals_conceded_per_game: played > 0 ? Math.round((ga / played) * 100) / 100 : 0,
+          };
+        });
+        setTeams(transformed);
       })
       .catch(() => {
-        fetch("/data/league_table.json").then((r) => r.json()).then(setTeams);
+        // Fallback to static JSON
+        fetch("/data/live_standings.json")
+          .then((r) => { if (!r.ok) throw new Error("no live data"); return r.json(); })
+          .then((data: TeamStanding[]) => {
+            if (!Array.isArray(data) || data.length === 0) throw new Error("empty");
+            setTeams(data.map((t) => ({
+              ...t,
+              team_id: t.team_id ?? t.position,
+              team_name: (t.team_name || "").replace(/ FC$/, "").replace(/^AFC /, ""),
+              goal_difference: t.goal_difference ?? (t.goals_for - t.goals_against),
+              win_rate: t.win_rate ?? (t.played > 0 ? Math.round((t.won / t.played) * 1000) / 10 : 0),
+              points_pct: t.points_pct ?? (t.played > 0 ? Math.round((t.points / (t.played * 3)) * 1000) / 10 : 0),
+              goals_per_game: t.goals_per_game ?? (t.played > 0 ? Math.round((t.goals_for / t.played) * 100) / 100 : 0),
+              goals_conceded_per_game: t.goals_conceded_per_game ?? (t.played > 0 ? Math.round((t.goals_against / t.played) * 100) / 100 : 0),
+            })));
+          })
+          .catch(() => {
+            fetch("/data/league_table.json").then((r) => r.json()).then(setTeams);
+          });
       });
   }, []);
 
