@@ -33,10 +33,34 @@ export default function ScorersPage() {
   const [tab, setTab] = useState<"goals" | "assists" | "contributions">("goals");
 
   useEffect(() => {
-    fetch("/api/scorers?limit=20")
-      .then((r) => r.json())
-      .then((data) => { setScorers(Array.isArray(data) ? data : []); setLoading(false); })
-      .catch(() => setLoading(false));
+    const API_BASE = process.env.NEXT_PUBLIC_CLOUD_API_URL || "https://dr81mm57l8sab.cloudfront.net";
+    fetch(`${API_BASE}/scorers`)
+      .then((r) => { if (!r.ok) throw new Error("API error"); return r.json(); })
+      .then((apiData) => {
+        const raw = apiData?.data?.scorers ?? apiData?.scorers ?? [];
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const transformed = raw.map((s: any, i: number) => ({
+          rank: i + 1,
+          player_id: s.player?.id ?? i,
+          player_name: s.player?.name ?? "",
+          team_name: (s.team?.shortName ?? s.team?.name ?? "").replace(/ FC$/, ""),
+          goals: s.goals ?? 0,
+          assists: s.assists ?? 0,
+          goal_contributions: (s.goals ?? 0) + (s.assists ?? 0),
+          matches_played: s.playedMatches ?? 0,
+          goals_per_game: s.playedMatches > 0 ? Math.round((s.goals / s.playedMatches) * 100) / 100 : 0,
+          assists_per_game: s.playedMatches > 0 ? Math.round(((s.assists ?? 0) / s.playedMatches) * 100) / 100 : 0,
+        }));
+        setScorers(transformed);
+        setLoading(false);
+      })
+      .catch(() => {
+        // Fallback to local API route
+        fetch("/api/scorers?limit=20")
+          .then((r) => r.json())
+          .then((data) => { setScorers(Array.isArray(data) ? data : []); setLoading(false); })
+          .catch(() => setLoading(false));
+      });
   }, []);
 
   if (loading) {

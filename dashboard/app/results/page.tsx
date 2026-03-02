@@ -25,13 +25,40 @@ export default function ResultsPage() {
   const [selectedRound, setSelectedRound] = useState<number | "all">("all");
 
   useEffect(() => {
-    fetch("/api/results?limit=380")
-      .then((r) => r.json())
-      .then((data) => {
-        setMatches(Array.isArray(data) ? data : []);
+    const API_BASE = process.env.NEXT_PUBLIC_CLOUD_API_URL || "https://dr81mm57l8sab.cloudfront.net";
+    fetch(`${API_BASE}/matches`)
+      .then((r) => { if (!r.ok) throw new Error("API error"); return r.json(); })
+      .then((apiData) => {
+        const raw = apiData?.data?.matches ?? apiData?.matches ?? [];
+        // Only show finished matches
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const transformed = raw.filter((m: any) => m.status === "FINISHED").map((m: any) => {
+          const hs = m.score?.fullTime?.home ?? 0;
+          const as_ = m.score?.fullTime?.away ?? 0;
+          const winner = hs > as_ ? "HOME_TEAM" : as_ > hs ? "AWAY_TEAM" : "DRAW";
+          return {
+            match_id: m.id,
+            matchday: m.matchday,
+            match_date: m.utcDate,
+            home_team_name: (m.homeTeam?.shortName ?? m.homeTeam?.name ?? "").replace(/ FC$/, ""),
+            away_team_name: (m.awayTeam?.shortName ?? m.awayTeam?.name ?? "").replace(/ FC$/, ""),
+            home_score: hs,
+            away_score: as_,
+            winner,
+            home_result: winner === "HOME_TEAM" ? "W" : winner === "AWAY_TEAM" ? "L" : "D",
+            away_result: winner === "AWAY_TEAM" ? "W" : winner === "HOME_TEAM" ? "L" : "D",
+          };
+        });
+        setMatches(transformed);
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch(() => {
+        // Fallback to local API route
+        fetch("/api/results?limit=380")
+          .then((r) => r.json())
+          .then((data) => { setMatches(Array.isArray(data) ? data : []); setLoading(false); })
+          .catch(() => setLoading(false));
+      });
   }, []);
 
   const rounds = useMemo(() => {

@@ -1,10 +1,9 @@
 import Link from "next/link";
-import path from "path";
-import fs from "fs";
 import { getQualificationZone } from "@/lib/data";
 import FormBadges from "@/components/FormBadges";
 import TeamBadge from "@/components/TeamBadge";
 import DataSourceBadge from "@/components/DataSourceBadge";
+import { fetchStandings } from "@/lib/api";
 
 export const revalidate = 300;
 
@@ -20,27 +19,9 @@ function stripFC(name: string): string {
 }
 
 async function getTable(): Promise<Array<Record<string, unknown>>> {
-  // Prefer live standings (current season from football-data.org)
-  const livePath = path.join(process.cwd(), "public", "data", "live_standings.json");
-  if (fs.existsSync(livePath)) {
-    const data = JSON.parse(fs.readFileSync(livePath, "utf-8"));
-    if (Array.isArray(data) && data.length > 0) {
-      // Enrich with derived stats
-      return data.map((t: Record<string, unknown>) => ({
-        ...t,
-        team_id: t.team_id ?? t.position,
-        goal_difference: (t.goal_difference as number) ?? ((t.goals_for as number) - (t.goals_against as number)),
-        win_rate: t.win_rate ?? ((t.played as number) > 0 ? Math.round(((t.won as number) / (t.played as number)) * 1000) / 10 : 0),
-        points_pct: t.points_pct ?? ((t.played as number) > 0 ? Math.round(((t.points as number) / ((t.played as number) * 3)) * 1000) / 10 : 0),
-        goals_per_game: t.goals_per_game ?? ((t.played as number) > 0 ? Math.round(((t.goals_for as number) / (t.played as number)) * 100) / 100 : 0),
-        goals_conceded_per_game: t.goals_conceded_per_game ?? ((t.played as number) > 0 ? Math.round(((t.goals_against as number) / (t.played as number)) * 100) / 100 : 0),
-      }));
-    }
-  }
-  // Fallback to league_table.json (batch/historical data)
-  const fallbackPath = path.join(process.cwd(), "public", "data", "league_table.json");
-  if (fs.existsSync(fallbackPath)) {
-    return JSON.parse(fs.readFileSync(fallbackPath, "utf-8"));
+  const standings = await fetchStandings(300);
+  if (standings.length > 0) {
+    return standings as unknown as Array<Record<string, unknown>>;
   }
   return [];
 }
