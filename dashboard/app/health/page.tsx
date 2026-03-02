@@ -1,7 +1,7 @@
 import Link from "next/link";
 import path from "path";
 import fs from "fs";
-import { API_BASE } from "@/lib/api";
+const API_BASE = process.env.NEXT_PUBLIC_CLOUD_API_URL || "https://dr81mm57l8sab.cloudfront.net";
 
 export const dynamic = "force-dynamic";
 
