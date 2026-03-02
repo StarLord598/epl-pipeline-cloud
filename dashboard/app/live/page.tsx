@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useLayoutEffect, useState, useCallback, useRef } from "react";
 import { getTeamColor, getTeamShort } from "@/lib/data";
 import DataSourceBadge from "@/components/DataSourceBadge";
 
@@ -311,7 +311,7 @@ export default function LivePage() {
     ["IN_PLAY", "LIVE", "PAUSED", "HALFTIME"].includes(m.status)
   );
 
-  // Group matches by date
+  // Group matches by date, sorted ascending
   const matchesByDate = matches.reduce((acc, m) => {
     const d = new Date(m.utc_date).toLocaleDateString("en-US", {
       weekday: "long",
@@ -328,6 +328,36 @@ export default function LivePage() {
   Object.values(matchesByDate).forEach((arr) =>
     arr.sort((a, b) => new Date(a.utc_date).getTime() - new Date(b.utc_date).getTime())
   );
+
+  // Sort date groups chronologically (ascending)
+  const sortedDateEntries = Object.entries(matchesByDate).sort(
+    ([, a], [, b]) => new Date(a[0].utc_date).getTime() - new Date(b[0].utc_date).getTime()
+  );
+
+  // Find the current/latest matchday to auto-scroll to
+  const now = Date.now();
+  const currentDateKey = sortedDateEntries.reduce<string | null>((best, [dateStr, dateMatches]) => {
+    const matchTime = new Date(dateMatches[0].utc_date).getTime();
+    // Find the closest date to now (prefer today/upcoming over past)
+    if (!best) return dateStr;
+    const bestMatches = matchesByDate[best];
+    const bestTime = new Date(bestMatches[0].utc_date).getTime();
+    const bestDist = Math.abs(bestTime - now);
+    const currDist = Math.abs(matchTime - now);
+    return currDist < bestDist ? dateStr : best;
+  }, null);
+
+  const hasScrolledLive = useRef(false);
+
+  useLayoutEffect(() => {
+    if (!loading && currentDateKey && !hasScrolledLive.current) {
+      const el = document.getElementById(`live-${currentDateKey}`);
+      if (el) {
+        el.scrollIntoView({ block: "center", behavior: "instant" as ScrollBehavior });
+        hasScrolledLive.current = true;
+      }
+    }
+  }, [loading, currentDateKey]);
 
   if (loading) {
     return (
@@ -389,10 +419,11 @@ export default function LivePage() {
         </div>
       ) : (
         <>
-          {Object.entries(matchesByDate).map(([dateStr, dateMatches]) => (
-            <div key={dateStr} className="mb-8">
-              <h2 className="text-[11px] font-semibold text-gray-500 mb-3 uppercase tracking-wider">
+          {sortedDateEntries.map(([dateStr, dateMatches]) => (
+            <div key={dateStr} id={`live-${dateStr}`} className="mb-8">
+              <h2 className="text-[11px] font-semibold text-gray-500 mb-3 uppercase tracking-wider flex items-center gap-2">
                 {dateStr}
+                {dateStr === currentDateKey && <span className="text-[#00ff85] text-[10px] font-normal">● Current</span>}
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {dateMatches.map((match) => (
