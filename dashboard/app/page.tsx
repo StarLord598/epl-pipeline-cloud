@@ -1,11 +1,13 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getQualificationZone } from "@/lib/data";
 import FormBadges from "@/components/FormBadges";
 import TeamBadge from "@/components/TeamBadge";
 import DataSourceBadge from "@/components/DataSourceBadge";
-import { fetchStandings } from "@/lib/api";
 
-export const revalidate = 300;
+const API_BASE = process.env.NEXT_PUBLIC_CLOUD_API_URL || "https://dr81mm57l8sab.cloudfront.net";
 
 const ZONE_LABELS: Record<string, { label: string; color: string }> = {
   "champions-league":  { label: "Champions League", color: "#00c8ff" },
@@ -18,23 +20,112 @@ function stripFC(name: string): string {
   return name.replace(/ FC$/, "").replace(/^AFC /, "").trim();
 }
 
-async function getTable(): Promise<Array<Record<string, unknown>>> {
-  const standings = await fetchStandings(300);
-  if (standings.length > 0) {
-    return standings as unknown as Array<Record<string, unknown>>;
-  }
-  return [];
+interface TeamRow {
+  position: number;
+  team_id: number;
+  team_name: string;
+  team_short: string;
+  tla: string;
+  crest: string;
+  played: number;
+  won: number;
+  drawn: number;
+  lost: number;
+  goals_for: number;
+  goals_against: number;
+  goal_difference: number;
+  points: number;
+  form: string;
+  win_rate: number;
+  points_pct: number;
+  goals_per_game: number;
+  goals_conceded_per_game: number;
+  qualification_zone?: string;
 }
 
-export default async function LeagueTablePage() {
-  const table = await getTable();
+export default function LeagueTablePage() {
+  const [table, setTable] = useState<TeamRow[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const topGoalTeam  = [...table].sort((a, b) => (b.goals_for as number) - (a.goals_for as number))[0];
-  const bestDefence  = [...table].sort((a, b) => (a.goals_against as number) - (b.goals_against as number))[0];
-  const mostWins     = [...table].sort((a, b) => (b.won as number) - (a.won as number))[0];
-  const relegated    = table.filter(t => (t.position as number) >= 18).map(t => stripFC(t.team_name as string));
-  const maxPlayed    = Math.max(...table.map(t => t.played as number));
-  const seasonLabel  = maxPlayed >= 38 ? "Final Standings" : `Matchday ${maxPlayed}`;
+  useEffect(() => {
+    // Fetch from CloudFront API, fallback to static JSON
+    fetch(`${API_BASE}/standings`)
+      .then((r) => { if (!r.ok) throw new Error("API error"); return r.json(); })
+      .then((apiData) => {
+        const standings = apiData?.data?.standings ?? apiData?.standings ?? [];
+        const total = standings.find((s: { type: string }) => s.type === "TOTAL") ?? standings[0];
+        if (!total?.table?.length) throw new Error("empty");
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const rows: TeamRow[] = total.table.map((t: any) => {
+          const played = t.playedGames ?? 0;
+          const won = t.won ?? 0;
+          const gf = t.goalsFor ?? 0;
+          const ga = t.goalsAgainst ?? 0;
+          const pts = t.points ?? 0;
+          return {
+            position: t.position,
+            team_id: t.team?.id ?? t.position,
+            team_name: (t.team?.name ?? "").replace(/ FC$/, "").replace(/^AFC /, "").trim(),
+            team_short: t.team?.shortName ?? "",
+            tla: t.team?.tla ?? "",
+            crest: t.team?.crest ?? "",
+            played,
+            won,
+            drawn: t.draw ?? 0,
+            lost: t.lost ?? 0,
+            goals_for: gf,
+            goals_against: ga,
+            goal_difference: t.goalDifference ?? (gf - ga),
+            points: pts,
+            form: (t.form ?? "").replace(/,/g, " "),
+            win_rate: played > 0 ? Math.round((won / played) * 1000) / 10 : 0,
+            points_pct: played > 0 ? Math.round((pts / (played * 3)) * 1000) / 10 : 0,
+            goals_per_game: played > 0 ? Math.round((gf / played) * 100) / 100 : 0,
+            goals_conceded_per_game: played > 0 ? Math.round((ga / played) * 100) / 100 : 0,
+          };
+        });
+        setTable(rows);
+        setLoading(false);
+      })
+      .catch(() => {
+        // Fallback to static JSON
+        fetch("/data/live_standings.json")
+          .then((r) => r.json())
+          .then((data) => {
+            if (Array.isArray(data) && data.length > 0) {
+              setTable(data.map((t: Record<string, unknown>) => ({
+                ...t,
+                team_id: t.team_id ?? t.position,
+                goal_difference: (t.goal_difference as number) ?? ((t.goals_for as number) - (t.goals_against as number)),
+                win_rate: t.win_rate ?? ((t.played as number) > 0 ? Math.round(((t.won as number) / (t.played as number)) * 1000) / 10 : 0),
+                points_pct: t.points_pct ?? ((t.played as number) > 0 ? Math.round(((t.points as number) / ((t.played as number) * 3)) * 1000) / 10 : 0),
+                goals_per_game: t.goals_per_game ?? ((t.played as number) > 0 ? Math.round(((t.goals_for as number) / (t.played as number)) * 100) / 100 : 0),
+                goals_conceded_per_game: t.goals_conceded_per_game ?? ((t.played as number) > 0 ? Math.round(((t.goals_against as number) / (t.played as number)) * 100) / 100 : 0),
+              })) as TeamRow[]);
+            }
+            setLoading(false);
+          })
+          .catch(() => setLoading(false));
+      });
+  }, []);
+
+  const topGoalTeam  = [...table].sort((a, b) => b.goals_for - a.goals_for)[0];
+  const bestDefence  = [...table].sort((a, b) => a.goals_against - b.goals_against)[0];
+  const mostWins     = [...table].sort((a, b) => b.won - a.won)[0];
+  const relegated    = table.filter(t => t.position >= 18).map(t => stripFC(t.team_name));
+  const maxPlayed    = table.length > 0 ? Math.max(...table.map(t => t.played)) : 0;
+  const seasonLabel  = maxPlayed >= 38 ? "Final Standings" : maxPlayed > 0 ? `Matchday ${maxPlayed}` : "Loading...";
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 rounded-full border-2 border-[#00ff85]/30 border-t-[#00ff85] animate-spin" />
+          <span className="text-gray-500 text-sm">Loading standings...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="animate-fade-in-up">
@@ -96,15 +187,15 @@ export default async function LeagueTablePage() {
             </thead>
             <tbody>
               {table.map((team) => {
-                const pos  = team.position as number;
-                const zone = (team.qualification_zone as string) || getQualificationZone(pos) || "";
+                const pos  = team.position;
+                const zone = team.qualification_zone || getQualificationZone(pos) || "";
                 const zoneClass = zone ? `zone-${zone.replace(/_/g, "-")}` : "";
                 const isChampion = pos === 1;
-                const displayName = stripFC(team.team_name as string);
+                const displayName = stripFC(team.team_name);
 
                 return (
                   <tr
-                    key={(team.team_id as number) ?? pos}
+                    key={team.team_id ?? pos}
                     className={`border-b border-white/[0.04] card-hover ${zoneClass} ${isChampion ? "bg-yellow-500/[0.03]" : ""}`}
                   >
                     <td className="py-3 px-3 sm:px-4">
@@ -118,25 +209,25 @@ export default async function LeagueTablePage() {
                         <span className="font-medium text-white text-sm">{displayName}</span>
                       </div>
                     </td>
-                    <td className="text-center py-3 px-1.5 sm:px-2 text-gray-400 tabular-nums">{team.played as number}</td>
-                    <td className="text-center py-3 px-1.5 sm:px-2 text-green-400 tabular-nums">{team.won as number}</td>
-                    <td className="text-center py-3 px-1.5 sm:px-2 text-gray-500 tabular-nums">{team.drawn as number}</td>
-                    <td className="text-center py-3 px-1.5 sm:px-2 text-red-400 tabular-nums">{team.lost as number}</td>
-                    <td className="text-center py-3 px-1.5 sm:px-2 text-gray-400 tabular-nums hidden sm:table-cell">{team.goals_for as number}</td>
-                    <td className="text-center py-3 px-1.5 sm:px-2 text-gray-400 tabular-nums hidden sm:table-cell">{team.goals_against as number}</td>
+                    <td className="text-center py-3 px-1.5 sm:px-2 text-gray-400 tabular-nums">{team.played}</td>
+                    <td className="text-center py-3 px-1.5 sm:px-2 text-green-400 tabular-nums">{team.won}</td>
+                    <td className="text-center py-3 px-1.5 sm:px-2 text-gray-500 tabular-nums">{team.drawn}</td>
+                    <td className="text-center py-3 px-1.5 sm:px-2 text-red-400 tabular-nums">{team.lost}</td>
+                    <td className="text-center py-3 px-1.5 sm:px-2 text-gray-400 tabular-nums hidden sm:table-cell">{team.goals_for}</td>
+                    <td className="text-center py-3 px-1.5 sm:px-2 text-gray-400 tabular-nums hidden sm:table-cell">{team.goals_against}</td>
                     <td className="text-center py-3 px-1.5 sm:px-2 tabular-nums">
-                      <span className={(team.goal_difference as number) > 0 ? "text-green-400" : (team.goal_difference as number) < 0 ? "text-red-400" : "text-gray-500"}>
-                        {(team.goal_difference as number) > 0 ? `+${team.goal_difference}` : team.goal_difference as number}
+                      <span className={team.goal_difference > 0 ? "text-green-400" : team.goal_difference < 0 ? "text-red-400" : "text-gray-500"}>
+                        {team.goal_difference > 0 ? `+${team.goal_difference}` : team.goal_difference}
                       </span>
                     </td>
                     <td className="text-center py-3 px-1.5 sm:px-2">
-                      <span className="font-bold text-white text-base tabular-nums">{team.points as number}</span>
+                      <span className="font-bold text-white text-base tabular-nums">{team.points}</span>
                     </td>
                     <td className="text-center py-3 px-2 text-gray-400 hidden md:table-cell tabular-nums">
-                      {team.win_rate as number}%
+                      {team.win_rate}%
                     </td>
                     <td className="text-center py-3 px-2 hidden lg:table-cell">
-                      <FormBadges form={team.form as string | undefined} />
+                      <FormBadges form={team.form} />
                     </td>
                   </tr>
                 );
@@ -150,25 +241,25 @@ export default async function LeagueTablePage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mt-6 stagger-children">
         <StatCard
           label="Most Goals"
-          value={stripFC(topGoalTeam?.team_name as string ?? "--")}
-          sub={`${topGoalTeam?.goals_for} scored`}
+          value={stripFC(topGoalTeam?.team_name ?? "--")}
+          sub={`${topGoalTeam?.goals_for ?? 0} scored`}
           color="#6CABDD"
         />
         <StatCard
           label="Best Defence"
-          value={stripFC(bestDefence?.team_name as string ?? "--")}
-          sub={`${bestDefence?.goals_against} conceded`}
+          value={stripFC(bestDefence?.team_name ?? "--")}
+          sub={`${bestDefence?.goals_against ?? 0} conceded`}
           color="#EF0107"
         />
         <StatCard
           label="Most Wins"
-          value={stripFC(mostWins?.team_name as string ?? "--")}
-          sub={`${mostWins?.won} wins`}
+          value={stripFC(mostWins?.team_name ?? "--")}
+          sub={`${mostWins?.won ?? 0} wins`}
           color="#00ff85"
         />
         <StatCard
           label="Relegated"
-          value={relegated.join(" · ")}
+          value={relegated.join(" · ") || "--"}
           sub="Bottom 3"
           color="#ef4444"
         />
