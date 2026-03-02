@@ -58,3 +58,4 @@ dashboard/public/data/events_matches.json
 # Build artifacts
 .build/
 .vercel
+demo-screenshots/node_modules/

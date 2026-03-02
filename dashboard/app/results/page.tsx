@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useLayoutEffect, useState, useMemo, useRef } from "react";
 import DataSourceBadge from "@/components/DataSourceBadge";
 
 interface Match {
@@ -80,7 +80,25 @@ export default function ResultsPage() {
 
   const sortedRounds = Object.keys(byRound)
     .map(Number)
-    .sort((a, b) => b - a);
+    .sort((a, b) => a - b);
+
+  // Find the latest matchday with finished matches to auto-scroll to
+  const latestPlayedRound = useMemo(() => {
+    const played = matches.map((m) => m.matchday);
+    return played.length > 0 ? Math.max(...played) : null;
+  }, [matches]);
+
+  const hasScrolled = useRef(false);
+
+  useLayoutEffect(() => {
+    if (!loading && latestPlayedRound && selectedRound === "all" && !hasScrolled.current) {
+      const el = document.getElementById(`gw-${latestPlayedRound}`);
+      if (el) {
+        el.scrollIntoView({ block: "center", behavior: "instant" as ScrollBehavior });
+        hasScrolled.current = true;
+      }
+    }
+  }, [loading, latestPlayedRound, selectedRound]);
 
   if (loading) {
     return (
@@ -145,9 +163,12 @@ export default function ResultsPage() {
       {/* Results by round */}
       <div className="space-y-4">
         {sortedRounds.map((round) => (
-          <div key={round} className="glass rounded-2xl overflow-hidden">
-            <div className="px-4 py-2.5 border-b border-white/[0.06] bg-white/[0.02]">
-              <h2 className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Gameweek {round}</h2>
+          <div key={round} id={`gw-${round}`} className="glass rounded-2xl overflow-hidden">
+            <div className={`px-4 py-2.5 border-b border-white/[0.06] ${round === latestPlayedRound ? "bg-[#00ff85]/[0.05]" : "bg-white/[0.02]"}`}>
+              <h2 className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                Gameweek {round}
+                {round === latestPlayedRound && <span className="text-[#00ff85] text-[10px] font-normal">● Latest</span>}
+              </h2>
             </div>
             <div className="divide-y divide-white/[0.04]">
               {byRound[round]
