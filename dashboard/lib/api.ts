@@ -257,3 +257,4 @@ export async function fetchCloudHealth() {
   if (!res.ok) throw new Error(`Health check failed: ${res.status}`);
   return res.json();
 }
+// Force redeploy Mon Mar  2 17:16:18 EST 2026
