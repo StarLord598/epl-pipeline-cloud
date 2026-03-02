@@ -59,3 +59,4 @@ dashboard/public/data/events_matches.json
 .build/
 .vercel
 demo-screenshots/node_modules/
+demo-screenshots/
