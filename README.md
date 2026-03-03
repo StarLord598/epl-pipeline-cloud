@@ -36,33 +36,55 @@ This project has **two deployment targets** that work simultaneously:
 │                        DATA SOURCES                                 │
 │  football-data.org ── StatsBomb Open Data ── Open-Meteo ── TheSportsDB │
 │  (live scores)        (129K match events)   (weather)    (fallback)   │
-└──────────┬─────────────────────────┬──────────────────────┬─────────┘
-           │                         │                      │
-     ┌─────┴──────────┐        ┌────┴──────┐          ┌────┴────┐
-     │  AWS Lambda x5 │        │  Python   │          │Open-Meteo│
-     │  (cloud ingest)│        │  scripts  │          │  API     │
-     └─────┬──────────┘        │  (local)  │          └────┬────┘
-           │                   └────┬──────┘               │
-           ▼                        ▼                      ▼
-┌──────────────────┐   ┌──────────────────────────────────────────────┐
-│  S3 Data Lake    │   │           DuckDB (local OLAP)                │
-│  (Parquet)       │   │                                              │
-│  raw/ stg/ mart/ │   │  🥉 Bronze (7 tables) → 🥈 Silver (6 views) │
-└────────┬─────────┘   │  → 🥇 Gold (12 tables)                      │
-         │             └──────────────────┬───────────────────────────┘
-         ▼                                │
-┌──────────────────┐           ┌──────────┴───────────────────────────┐
-│  Athena + Glue   │           │      dbt (18 models, 37 tests)       │
-│  (cloud query)   │           └──────────┬───────────────────────────┘
-└──────────────────┘                      │
-                                          ▼
+└──────┬──────────────────────────┬──────────────────────┬────────────┘
+       │                          │                      │
+ ┌─────┴──────────────┐     ┌────┴──────┐          ┌────┴────┐
+ │  AWS Lambda x5     │     │  Python   │          │Open-Meteo│
+ │  daily_ingest      │     │  scripts  │          │  API     │
+ │  live_matches (15m)│     │  (local)  │          └────┬────┘
+ │  backfill          │     └────┬──────┘               │
+ │  data_quality      │          │                      │
+ │  api               │          │                      │
+ └─────┬──────────────┘          │                      │
+       │                         ▼                      ▼
+       ▼                ┌──────────────────────────────────────────────┐
+┌──────────────────┐    │           DuckDB (local OLAP)                │
+│  S3 Data Lake    │    │                                              │
+│  (Parquet)       │    │  🥉 Bronze (7 tables) → 🥈 Silver (6 views) │
+│  raw/matches/    │    │  → 🥇 Gold (12 tables)                      │
+│  raw/live_matches│    └──────────────────┬───────────────────────────┘
+│  stg/ mart/      │                       │
+└────────┬─────────┘            ┌──────────┴───────────────────────────┐
+         │                      │      dbt (18 models, 37 tests)       │
+         ▼                      └──────────┬───────────────────────────┘
+┌──────────────────┐                       │
+│  Athena + Glue   │                       ▼
+│  (cloud query)   │            ┌──────────────────────┐
+└──────────────────┘            │  JSON Export (local)  │
+                                └──────────┬───────────┘
+┌──────────────────────────────────────────┼───────────────────────────┐
+│          API Lambda (live merge)         │                           │
+│  raw/matches/ + raw/live_matches/ ──►  merged response              │
+└────────────────┬─────────────────────────┘                          │
+                 ▼                                                     │
+┌──────────────────────────┐                                          │
+│  API Gateway + CloudFront│                                          │
+│  /standings  /scorers    │                                          │
+│  /matches    /health     │                                          │
+│  (5-min cache, HTTPS)    │                                          │
+└────────────────┬─────────┘                                          │
+                 │                                                     │
+                 ▼                                                     ▼
 ┌──────────────────────────────────────────────────────────────────────┐
 │                    DASHBOARD (Next.js 14 + Vercel)                    │
 │                                                                      │
 │  12 pages: Table · Race · Form · Live · Results · Scorers · Stats   │
 │           Stream · Weather · Quality · Lineage · Health              │
 │                                                                      │
-│  12 API routes (REST + SSE streaming)                                │
+│  ⚡ Live pages → CloudFront API (primary) + static JSON (fallback)   │
+│  📊 Race & Form → derived client-side from /matches API             │
+│  📁 Static pages (Quality, Stream, Lineage, Weather) → batch JSON   │
+│                                                                      │
 │  🔗 andres-alvarez-de-cloud-epl-analytics.vercel.app                │
 └──────────────────────────────────────────────────────────────────────┘
 ```
@@ -199,12 +221,12 @@ cp .env.example .env
 
 | Page | Route | DW Pattern | Data Refresh | Description |
 |------|-------|------------|-------------|-------------|
-| 🏆 **League Table** | `/` | Fact Table (Kimball) | ⚡ Every 15 min (live poll) + hourly | Live 2025-26 standings with qualification zones, form, per-game stats |
-| 📈 **Points Race** | `/race` | Accumulating Snapshot | 🔄 Every 30 min (dbt transform) | Interactive line chart — cumulative points across matchdays |
-| 🔥 **Form & Momentum** | `/form` | Rolling Window + SCD2 | 🔄 Every 30 min (dbt transform) | Hot/Cold momentum panel (rolling 5-game PPG) + position history |
+| 🏆 **League Table** | `/` | Fact Table (Kimball) | ⚡ Every 15 min (CloudFront API) | Live 2025-26 standings with qualification zones, form, per-game stats |
+| 📈 **Points Race** | `/race` | Accumulating Snapshot | ⚡ Every 15 min (derived from CloudFront API) | Interactive line chart — cumulative points across matchdays |
+| 🔥 **Form & Momentum** | `/form` | Rolling Window + SCD2 | ⚡ Every 15 min (derived from CloudFront API) | Hot/Cold momentum panel (rolling 5-game PPG) + position history |
 | ⚡ **Live Matches** | `/live` | Transaction Fact (CDC) | ⚡ Every 15 min (matchday-aware) | Real-time scores with status badges (LIVE/HT/FT), auto-refresh |
-| ⚽ **Results** | `/results` | Incremental Fact Table | 🔄 Every 30 min (dbt incremental) | Match results browseable by gameweek |
-| 🎯 **Top Scorers** | `/scorers` | Star Schema (Kimball) | 🕐 Hourly refresh | Golden Boot race with bar charts |
+| ⚽ **Fixtures & Results** | `/results` | Incremental Fact Table | ⚡ Every 15 min (CloudFront API) | FotMob-style date-grouped fixtures — finished matches show scores, upcoming show kickoff times, auto-scrolls to today |
+| 🎯 **Top Scorers** | `/scorers` | Star Schema (Kimball) | ⚡ Every 15 min (CloudFront API) | Golden Boot race with bar charts |
 | 📊 **Stats** | `/stats` | Conformed Dimension | 🔄 Every 30 min (dbt transform) | Radar charts, team comparisons (select up to 4 teams) |
 | 📡 **Streaming Replay** | `/stream` | Event Streaming (Kafka pattern) | 📅 Daily at 6 AM (StatsBomb batch) | SSE-powered match replay — live event feed, possession bar, scoreboard |
 | 🌤️ **Stadium Weather** | `/weather` | Live API Integration | 🌀 Every 5 min (Open-Meteo) | Near real-time weather at all 20 EPL stadiums — pitch conditions |
@@ -235,12 +257,17 @@ All endpoints return JSON with `Cache-Control` headers. Full reference: [docs/AP
 | `/api/health` | GET | Pipeline health status |
 
 ### Cloud API (API Gateway + CloudFront)
+
+The cloud API serves live data from S3 through API Gateway + CloudFront (5-min cache). The `/matches` endpoint performs a **live merge** — overlaying real-time scores from `raw/live_matches/` (updated every 15 min by Lambda) on top of the daily match data, so the dashboard always reflects in-progress scores during live matches.
+
 ```bash
-curl https://<cloudfront-domain>/standings
-curl https://<cloudfront-domain>/scorers
-curl https://<cloudfront-domain>/matches
-curl https://<cloudfront-domain>/health
+curl https://<cloudfront-domain>/standings   # Current league table
+curl https://<cloudfront-domain>/scorers     # Top scorers
+curl https://<cloudfront-domain>/matches     # All matches (with live score overlay)
+curl https://<cloudfront-domain>/health      # Pipeline health + last run status
 ```
+
+Dashboard pages that show dynamic data (Table, Scorers, Results, Live, Stats) fetch directly from CloudFront. Form and Race pages derive their data client-side from the `/matches` endpoint. Static pages (Quality, Stream, Lineage, Weather) use batch JSON files.
 
 ### Examples (Local/Vercel)
 ```bash

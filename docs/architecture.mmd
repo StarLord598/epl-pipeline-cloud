@@ -50,8 +50,8 @@ flowchart TB
             I2["CloudFront CDN"]
         end
         subgraph DASH["🖥️ Dashboard"]
-            J1["ECR"]
-            J2["ECS Fargate<br/>Next.js"]
+            J1["Vercel<br/>Auto-deploy from main"]
+            J2["Next.js 14<br/>12 pages"]
         end
         subgraph MON["📡 Monitoring"]
             K1["CloudWatch<br/>Dashboard + Alarms"]
@@ -90,13 +90,13 @@ flowchart TB
     G1 --> H1
     H1 --> H2
 
-    %% API flow
+    %% API flow — live merge
     I2 --> I1 --> F5
-    F5 --> G1
+    F5 -->|"daily + live merge"| G1
 
-    %% Dashboard
+    %% Dashboard reads from CloudFront
     J1 --> J2
-    J2 --> G1
+    J2 -->|"CloudFront API"| I2
 
     %% Monitoring
     F1 & F2 & F3 --> K1
