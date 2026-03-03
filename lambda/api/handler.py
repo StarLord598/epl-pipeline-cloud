@@ -48,12 +48,14 @@ def respond(status_code: int, body: dict) -> dict:
 
 def get_latest_object(prefix: str) -> dict | None:
     """Get the most recently modified object under a prefix."""
-    response = s3.list_objects_v2(Bucket=BUCKET, Prefix=prefix, MaxKeys=50)
-    contents = response.get("Contents", [])
-    objects = [o for o in contents if o["Size"] > 0]
-    if not objects:
-        return None
-    return max(objects, key=lambda o: o["LastModified"])
+    # Paginate to handle prefixes with many files (live_matches can have 90+/day)
+    paginator = s3.get_paginator("list_objects_v2")
+    latest = None
+    for page in paginator.paginate(Bucket=BUCKET, Prefix=prefix):
+        for obj in page.get("Contents", []):
+            if obj["Size"] > 0 and (latest is None or obj["LastModified"] > latest["LastModified"]):
+                latest = obj
+    return latest
 
 
 def read_s3_json(key: str) -> tuple[bool, any, str]:
@@ -92,7 +94,13 @@ def handle_data_endpoint(prefix: str, is_matches: bool = False) -> dict:
 
     # For /matches, overlay live match data on top of daily data
     if is_matches:
-        live_latest = get_latest_object("raw/live_matches/")
+        # Use today's date prefix to avoid listing all historical live files
+        from datetime import datetime, timezone
+        today_prefix = f"raw/live_matches/{datetime.now(timezone.utc).strftime('%Y-%m-%d')}/"
+        live_latest = get_latest_object(today_prefix)
+        if not live_latest:
+            # Fallback: scan recent files across all dates
+            live_latest = get_latest_object("raw/live_matches/")
         if live_latest and live_latest["Key"].endswith(".json"):
             live_ok, live_data, _ = read_s3_json(live_latest["Key"])
             if live_ok:
