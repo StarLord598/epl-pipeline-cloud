@@ -2,7 +2,9 @@
 
 ## Overview
 
-The cloud layer extends the existing local DuckDB + Airflow pipeline to run on AWS, using a serverless architecture with S3 data lake, Lambda for ingestion, Glue Catalog for metadata, Athena for querying, Step Functions for orchestration, API Gateway + CloudFront for public API access, ECS Fargate for the dashboard, and CloudWatch for monitoring.
+A fully serverless cloud data platform on AWS: S3 data lake for storage, Lambda for ingestion, Glue Catalog for metadata, Athena for querying, Step Functions + EventBridge for orchestration, API Gateway + CloudFront for the public REST API, Vercel for the dashboard, and CloudWatch + SNS for monitoring and alerts.
+
+> 📌 For the local pipeline (DuckDB, Airflow, dbt), see [epl-pipeline-de-project](https://github.com/StarLord598/epl-pipeline-de-project).
 
 ## Architecture Diagram
 
