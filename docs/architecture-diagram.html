@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #050810;
+    font-family: 'Inter', system-ui, sans-serif;
+    color: #c8d6e5;
+    width: 1400px;
+    padding: 50px;
+    position: relative;
+    overflow: hidden;
+  }
+  body::before {
+    content: '';
+    position: absolute;
+    top: -200px; left: 50%;
+    width: 800px; height: 800px;
+    background: radial-gradient(circle, rgba(0,255,133,0.06) 0%, transparent 70%);
+    transform: translateX(-50%);
+    pointer-events: none;
+  }
+
+  /* ===== ANIMATIONS ===== */
+  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  @keyframes spinSlow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  @keyframes pulse { 0%,100% { opacity: 0.6; transform: scale(1); } 50% { opacity: 1; transform: scale(1.15); } }
+  @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+  @keyframes glow { 0%,100% { box-shadow: 0 0 20px rgba(0,255,133,0.2); } 50% { box-shadow: 0 0 40px rgba(0,255,133,0.5); } }
+  @keyframes flowDot {
+    0% { top: 0; opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { top: 100%; opacity: 0; }
+  }
+  @keyframes waveBar {
+    0% { transform: scaleY(0.4); } 25% { transform: scaleY(1); }
+    50% { transform: scaleY(0.6); } 75% { transform: scaleY(0.9); }
+    100% { transform: scaleY(0.4); }
+  }
+  @keyframes slideRight {
+    0% { transform: translateX(-100%); opacity: 0; }
+    20% { opacity: 1; }
+    80% { opacity: 1; }
+    100% { transform: translateX(200%); opacity: 0; }
+  }
+  @keyframes breathe {
+    0%,100% { opacity: 0.5; } 50% { opacity: 1; }
+  }
+  @keyframes radar {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+  @keyframes fillUp {
+    0%,100% { height: 30%; } 50% { height: 85%; }
+  }
+  @keyframes typewriter {
+    0%,100% { width: 0; } 50% { width: 100%; }
+  }
+  @keyframes shield {
+    0%,100% { transform: scale(1); opacity: 0.8; }
+    50% { transform: scale(1.08); opacity: 1; }
+  }
+
+  .spin { animation: spin 4s linear infinite; display: inline-block; }
+  .spin-slow { animation: spinSlow 8s linear infinite; display: inline-block; }
+  .pulse { animation: pulse 2s ease-in-out infinite; display: inline-block; }
+  .blink { animation: blink 1.5s ease-in-out infinite; }
+  .breathe { animation: breathe 3s ease-in-out infinite; }
+  .shield-pulse { animation: shield 3s ease-in-out infinite; display: inline-block; }
+
+  /* Flowing data dots in connectors */
+  .flow-pipe {
+    position: relative;
+    width: 2px; height: 36px;
+    margin: 8px auto;
+    border-radius: 1px;
+    overflow: visible;
+  }
+  .flow-pipe .dot {
+    position: absolute;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    left: -2px;
+    animation: flowDot 1.5s ease-in-out infinite;
+  }
+  .flow-pipe .dot:nth-child(2) { animation-delay: 0.5s; }
+  .flow-pipe .dot:nth-child(3) { animation-delay: 1s; }
+  .flow-pipe .arrow {
+    position: absolute; bottom: -8px; left: -5px;
+    width: 0; height: 0;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+  }
+
+  /* Data stream bar */
+  .stream-bars {
+    display: inline-flex; gap: 2px; align-items: flex-end; height: 16px; vertical-align: middle;
+  }
+  .stream-bars .bar {
+    width: 3px; background: currentColor; border-radius: 1px;
+    animation: waveBar 1.2s ease-in-out infinite;
+  }
+  .stream-bars .bar:nth-child(1) { animation-delay: 0s; height: 8px; }
+  .stream-bars .bar:nth-child(2) { animation-delay: 0.15s; height: 12px; }
+  .stream-bars .bar:nth-child(3) { animation-delay: 0.3s; height: 6px; }
+  .stream-bars .bar:nth-child(4) { animation-delay: 0.45s; height: 14px; }
+  .stream-bars .bar:nth-child(5) { animation-delay: 0.6s; height: 10px; }
+
+  /* Bucket fill animation */
+  .bucket-fill {
+    display: inline-block; position: relative;
+    width: 18px; height: 18px; overflow: hidden;
+    vertical-align: middle;
+  }
+  .bucket-fill .water {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    background: linear-gradient(180deg, rgba(0,255,133,0.4), rgba(0,200,100,0.6));
+    border-radius: 0 0 3px 3px;
+    animation: fillUp 4s ease-in-out infinite;
+  }
+
+  /* Moving data packet */
+  .data-packet-track {
+    position: relative; overflow: hidden;
+    display: inline-block; width: 60px; height: 14px; vertical-align: middle;
+    margin: 0 4px;
+  }
+  .data-packet {
+    position: absolute;
+    width: 20px; height: 8px; top: 3px;
+    border-radius: 4px;
+    animation: slideRight 2s linear infinite;
+  }
+
+  /* ===== LAYOUT ===== */
+  .header { text-align: center; margin-bottom: 40px; }
+  .header .ball {
+    width: 64px; height: 64px;
+    background: linear-gradient(135deg, #00ff85, #00cc6a);
+    border-radius: 18px;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 34px;
+    animation: glow 3s ease-in-out infinite;
+    margin-bottom: 14px;
+  }
+  .header h1 { font-size: 40px; font-weight: 900; color: #fff; letter-spacing: -1.5px; }
+  .header .sub { font-size: 14px; color: #3a5068; letter-spacing: 4px; text-transform: uppercase; margin-top: 6px; }
+
+  .row { display: flex; gap: 16px; position: relative; z-index: 1; }
+
+  .card {
+    border-radius: 20px; padding: 24px 26px;
+    position: relative; overflow: hidden; flex: 1;
+  }
+  .card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; }
+
+  .card-head { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+  .card-head .icon-wrap {
+    width: 44px; height: 44px; border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; position: relative;
+  }
+  .card-head .icon-wrap .glow {
+    position: absolute; width: 100%; height: 100%;
+    border-radius: 14px; filter: blur(12px); opacity: 0.4; z-index: -1;
+  }
+  .card-head .title { font-size: 14px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; }
+  .card-head .desc { font-size: 11px; opacity: 0.4; margin-top: 1px; }
+
+  .items { display: flex; flex-wrap: wrap; gap: 8px; }
+  .item {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 14px; background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06); border-radius: 12px;
+    font-size: 13px; font-weight: 600;
+  }
+  .item .ico { font-size: 18px; }
+  .item .detail { font-size: 10px; font-weight: 400; opacity: 0.4; margin-left: 2px; }
+
+  .pill {
+    display: inline-block; font-size: 9px; font-weight: 700;
+    padding: 3px 10px; border-radius: 6px;
+    text-transform: uppercase; letter-spacing: 0.8px; margin-left: 6px;
+  }
+
+  .tag-row { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 4px; }
+  .tag { font-size: 10px; padding: 4px 10px; border-radius: 6px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.04); color: #5a7a90; }
+
+  .note { font-size: 11px; color: #3a5a70; line-height: 1.6; margin-top: 10px; }
+
+  /* Themes */
+  .t-sky { background: linear-gradient(160deg, rgba(0,120,255,0.08), rgba(0,60,140,0.02)); border: 1px solid rgba(0,150,255,0.12); }
+  .t-sky::before { background: linear-gradient(90deg, #0080ff, #00c0ff); }
+  .t-sky .title { color: #40b0ff; }
+  .t-sky .icon-wrap { background: linear-gradient(135deg, #0080ff, #00c0ff); color: #fff; }
+  .t-sky .icon-wrap .glow { background: #0080ff; }
+
+  .t-orange { background: linear-gradient(160deg, rgba(255,153,0,0.08), rgba(200,100,0,0.02)); border: 1px solid rgba(255,153,0,0.12); }
+  .t-orange::before { background: linear-gradient(90deg, #ff9900, #ffcc33); }
+  .t-orange .title { color: #ffbb33; }
+  .t-orange .icon-wrap { background: linear-gradient(135deg, #ff9900, #ffcc33); color: #1a1000; }
+  .t-orange .icon-wrap .glow { background: #ff9900; }
+
+  .t-green { background: linear-gradient(160deg, rgba(0,255,133,0.06), rgba(0,180,80,0.02)); border: 1px solid rgba(0,255,133,0.10); }
+  .t-green::before { background: linear-gradient(90deg, #00cc6a, #00ff85); }
+  .t-green .title { color: #00ff85; }
+  .t-green .icon-wrap { background: linear-gradient(135deg, #00cc6a, #00ff85); color: #001a0a; }
+  .t-green .icon-wrap .glow { background: #00ff85; }
+
+  .t-teal { background: linear-gradient(160deg, rgba(0,210,255,0.06), rgba(0,150,200,0.02)); border: 1px solid rgba(0,210,255,0.10); }
+  .t-teal::before { background: linear-gradient(90deg, #00d2ff, #00ffee); }
+  .t-teal .title { color: #00e5ff; }
+  .t-teal .icon-wrap { background: linear-gradient(135deg, #00c8ff, #00e5ff); color: #001a20; }
+  .t-teal .icon-wrap .glow { background: #00c8ff; }
+
+  .t-purple { background: linear-gradient(160deg, rgba(155,89,220,0.08), rgba(120,50,180,0.02)); border: 1px solid rgba(155,89,220,0.12); }
+  .t-purple::before { background: linear-gradient(90deg, #9b59dc, #c77dff); }
+  .t-purple .title { color: #c77dff; }
+  .t-purple .icon-wrap { background: linear-gradient(135deg, #9b59dc, #c77dff); color: #fff; }
+  .t-purple .icon-wrap .glow { background: #9b59dc; }
+
+  .t-violet { background: linear-gradient(160deg, rgba(168,85,247,0.08), rgba(120,50,200,0.02)); border: 1px solid rgba(168,85,247,0.12); }
+  .t-violet::before { background: linear-gradient(90deg, #a855f7, #d4a0ff); }
+  .t-violet .title { color: #d4a0ff; }
+  .t-violet .icon-wrap { background: linear-gradient(135deg, #a855f7, #c084fc); color: #fff; }
+  .t-violet .icon-wrap .glow { background: #a855f7; }
+
+  .t-amber { background: linear-gradient(160deg, rgba(245,158,11,0.08), rgba(200,120,0,0.02)); border: 1px solid rgba(245,158,11,0.10); }
+  .t-amber::before { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+  .t-amber .title { color: #fbbf24; }
+  .t-amber .icon-wrap { background: linear-gradient(135deg, #f59e0b, #fbbf24); color: #1a1000; }
+  .t-amber .icon-wrap .glow { background: #f59e0b; }
+
+  .t-red { background: linear-gradient(160deg, rgba(239,68,68,0.08), rgba(180,40,40,0.02)); border: 1px solid rgba(239,68,68,0.10); }
+  .t-red::before { background: linear-gradient(90deg, #ef4444, #f87171); }
+  .t-red .title { color: #f87171; }
+  .t-red .icon-wrap { background: linear-gradient(135deg, #ef4444, #f87171); color: #fff; }
+  .t-red .icon-wrap .glow { background: #ef4444; }
+
+  .t-indigo { background: linear-gradient(160deg, rgba(99,102,241,0.08), rgba(60,60,180,0.02)); border: 1px solid rgba(99,102,241,0.10); }
+  .t-indigo::before { background: linear-gradient(90deg, #6366f1, #a5b4fc); }
+  .t-indigo .title { color: #a5b4fc; }
+  .t-indigo .icon-wrap { background: linear-gradient(135deg, #6366f1, #818cf8); color: #fff; }
+  .t-indigo .icon-wrap .glow { background: #6366f1; }
+
+  .merge {
+    background: rgba(0,255,133,0.04); border: 1.5px dashed rgba(0,255,133,0.2);
+    border-radius: 14px; padding: 16px 18px; margin-top: 12px;
+  }
+  .merge .m-head { font-size: 13px; font-weight: 800; color: #00ff85; margin-bottom: 6px; }
+  .merge .m-body { font-size: 11px; color: #4a8a6a; line-height: 1.6; }
+  .merge code { color: #00ff85; background: rgba(0,255,133,0.06); padding: 1px 6px; border-radius: 4px; font-size: 10px; }
+  .merge .m-stat { font-size: 12px; font-weight: 700; color: #00ff85; margin-top: 8px; }
+
+  .endpoints { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .ep { font-family: monospace; font-size: 11px; font-weight: 600; padding: 6px 14px; background: rgba(155,89,220,0.08); border: 1px solid rgba(155,89,220,0.15); border-radius: 8px; color: #c77dff; }
+
+  .stats { display: flex; gap: 12px; margin-top: 28px; }
+  .stat { flex: 1; text-align: center; padding: 18px 12px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04); border-radius: 16px; }
+  .stat .s-icon { font-size: 20px; margin-bottom: 6px; }
+  .stat .s-val { font-size: 30px; font-weight: 900; background: linear-gradient(135deg, #00ff85, #00cc6a); -webkit-background-clip: text; -webkit-text-fill-color: transparent; line-height: 1; }
+  .stat .s-label { font-size: 9px; color: #3a5068; text-transform: uppercase; letter-spacing: 1.5px; margin-top: 4px; font-weight: 600; }
+
+  .footer { text-align: center; margin-top: 22px; font-size: 12px; color: #1a2a3a; }
+  .footer span { color: #00ff85; font-weight: 700; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="ball"><span class="spin-slow">⚽</span></div>
+  <h1>EPL Cloud Analytics Platform</h1>
+  <div class="sub">End-to-End Serverless Data Pipeline on AWS</div>
+</div>
+
+<!-- Data Sources -->
+<div class="row">
+  <div class="card t-sky">
+    <div class="card-head">
+      <div class="icon-wrap"><div class="glow"></div><span class="pulse">🌐</span></div>
+      <div><div class="title">Data Sources</div><div class="desc">External APIs → Real-time & Historical</div></div>
+    </div>
+    <div class="items">
+      <div class="item">
+        <span class="ico">⚽</span> football-data.org
+        <span class="pill" style="background:rgba(0,255,133,0.1);color:#00ff85;border:1px solid rgba(0,255,133,0.2);">
+          <span class="blink">⚡</span> Live API
+        </span>
+        <div class="stream-bars" style="color:#00ff85;"><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div></div>
+      </div>
+      <div class="item">
+        <span class="ico">📦</span> StatsBomb Open Data
+        <span class="pill" style="background:rgba(64,176,255,0.1);color:#40b0ff;border:1px solid rgba(64,176,255,0.2);">📅 Historical</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Flow: Sources → Orchestration -->
+<div class="flow-pipe" style="background:linear-gradient(180deg, rgba(0,128,255,0.3), rgba(0,200,255,0.3));">
+  <div class="dot" style="background:#00c8ff; box-shadow: 0 0 6px #00c8ff;"></div>
+  <div class="dot" style="background:#00c8ff; box-shadow: 0 0 6px #00c8ff;"></div>
+  <div class="dot" style="background:#00c8ff; box-shadow: 0 0 6px #00c8ff;"></div>
+  <div class="arrow" style="border-top: 8px solid #00c8ff;"></div>
+</div>
+
+<!-- Orchestration + Lambda -->
+<div class="row">
+  <div class="card t-teal" style="flex:0.85;">
+    <div class="card-head">
+      <div class="icon-wrap"><div class="glow"></div><span class="spin">⚙️</span></div>
+      <div><div class="title">Orchestration</div><div class="desc">Scheduling & Workflows</div></div>
+    </div>
+    <div class="items">
+      <div class="item"><span class="ico"><span class="spin-slow">⏰</span></span> EventBridge <span class="pill" style="background:rgba(0,230,255,0.1);color:#00e5ff;border:1px solid rgba(0,230,255,0.2);">3 Rules</span></div>
+      <div class="item"><span class="ico"><span class="spin-slow">🔗</span></span> Step Functions</div>
+    </div>
+    <div class="note">📅 Daily 6AM → Ingest → Quality → Notify<br><span class="blink">⚡</span> Every 15 min → Live scores<br>🔄 Weekly → Backfill</div>
+  </div>
+  <div class="card t-orange" style="flex:1.15;">
+    <div class="card-head">
+      <div class="icon-wrap"><div class="glow"></div><span class="pulse" style="font-weight:900;font-size:24px;">λ</span></div>
+      <div><div class="title">Lambda Functions</div><div class="desc">Serverless Compute × 5</div></div>
+    </div>
+    <div class="items">
+      <div class="item"><span class="ico breathe">📥</span> daily_ingest <span class="pill" style="background:rgba(64,176,255,0.1);color:#40b0ff;border:1px solid rgba(64,176,255,0.2);">Daily</span></div>
+      <div class="item"><span class="ico pulse">⚡</span> live_matches <span class="pill" style="background:rgba(255,187,51,0.1);color:#ffbb33;border:1px solid rgba(255,187,51,0.2);"><span class="blink">15 min</span></span></div>
+      <div class="item"><span class="ico"><span class="spin-slow">🔄</span></span> backfill</div>
+      <div class="item"><span class="ico shield-pulse">🛡️</span> data_quality</div>
+      <div class="item"><span class="ico pulse">🌍</span> api <span class="pill" style="background:rgba(0,255,133,0.1);color:#00ff85;border:1px solid rgba(0,255,133,0.2);"><span class="blink">⚡</span> Live Merge</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- Flow: Lambda → S3 -->
+<div class="flow-pipe" style="background:linear-gradient(180deg, rgba(255,153,0,0.3), rgba(0,255,133,0.3));">
+  <div class="dot" style="background:#ff9900; box-shadow: 0 0 6px #ff9900;"></div>
+  <div class="dot" style="background:#ffcc33; box-shadow: 0 0 6px #ffcc33;"></div>
+  <div class="dot" style="background:#00ff85; box-shadow: 0 0 6px #00ff85;"></div>
+  <div class="arrow" style="border-top: 8px solid #00ff85;"></div>
+</div>
+
+<!-- S3 + Query -->
+<div class="row">
+  <div class="card t-green" style="flex:1.5;">
+    <div class="card-head">
+      <div class="icon-wrap"><div class="glow"></div>🪣</div>
+      <div><div class="title">S3 Data Lake</div><div class="desc">Parquet · Versioned · Encrypted</div></div>
+    </div>
+    <div class="items">
+      <div class="item"><span class="ico">📂</span> raw/matches/ <span class="detail">380 matches</span></div>
+      <div class="item" style="border-color:rgba(0,255,133,0.15);background:rgba(0,255,133,0.03);">
+        <span class="ico blink">🔴</span> raw/live_matches/
+        <span class="detail">every 15min</span>
+        <div class="stream-bars" style="color:#00ff85;"><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div></div>
+      </div>
+      <div class="item"><span class="ico">📂</span> raw/standings/</div>
+      <div class="item"><span class="ico">📂</span> raw/top_scorers/</div>
+      <div class="item"><span class="ico">📂</span> raw/events/ <span class="detail">129K+</span></div>
+    </div>
+    <div class="tag-row">
+      <span class="tag"><span class="breathe">🔒</span> AES-256</span><span class="tag">📋 Versioned</span><span class="tag"><span class="spin-slow">♻️</span> Lifecycle</span><span class="tag">📁 Hive Partitions</span>
+    </div>
+  </div>
+  <div class="card t-teal" style="flex:0.55;">
+    <div class="card-head">
+      <div class="icon-wrap"><div class="glow"></div><span class="pulse">🔍</span></div>
+      <div><div class="title">Query & Catalog</div><div class="desc">Serverless Analytics</div></div>
+    </div>
+    <div class="items">
+      <div class="item"><span class="ico">📚</span> Glue Catalog</div>
+      <div class="item"><span class="ico">🔎</span> Athena</div>
+    </div>
+    <div class="note">🗂️ Schema-on-read<br>💡 SQL on S3<br>💰 Cost-controlled</div>
+  </div>
+</div>
+
+<!-- Flow: S3 → API -->
+<div class="flow-pipe" style="background:linear-gradient(180deg, rgba(0,255,133,0.3), rgba(155,89,220,0.3));">
+  <div class="dot" style="background:#00ff85; box-shadow: 0 0 6px #00ff85;"></div>
+  <div class="dot" style="background:#66cc99; box-shadow: 0 0 6px #66cc99;"></div>
+  <div class="dot" style="background:#9b59dc; box-shadow: 0 0 6px #9b59dc;"></div>
+  <div class="arrow" style="border-top: 8px solid #9b59dc;"></div>
+</div>
+
+<!-- API -->
+<div class="row">
+  <div class="card t-purple">
+    <div class="card-head">
+      <div class="icon-wrap"><div class="glow"></div><span class="pulse">🌍</span></div>
+      <div><div class="title">Public REST API</div><div class="desc">API Gateway + CloudFront CDN</div></div>
+    </div>
+    <div style="display:flex;gap:20px;align-items:flex-start;">
+      <div style="flex:1;">
+        <div class="items">
+          <div class="item"><span class="ico breathe">🔒</span> API Gateway <span class="detail">CORS · REST</span></div>
+          <div class="item"><span class="ico"><span class="spin-slow">🌐</span></span> CloudFront <span class="detail">HTTPS · 5min TTL</span></div>
+        </div>
+        <div class="endpoints">
+          <span class="ep">GET /standings</span><span class="ep">GET /scorers</span><span class="ep breathe">GET /matches</span><span class="ep">GET /health</span>
+        </div>
+      </div>
+      <div class="merge" style="flex:0.65;">
+        <div class="m-head"><span class="blink">⚡</span> Live Score Merge</div>
+        <div class="m-body"><code>/matches</code> overlays real-time scores from <code>raw/live_matches/</code> on top of daily data</div>
+        <div class="m-stat">⏱️ Max latency: ~20 min</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Flow: API → Dashboard -->
+<div class="flow-pipe" style="background:linear-gradient(180deg, rgba(155,89,220,0.3), rgba(168,85,247,0.3));">
+  <div class="dot" style="background:#9b59dc; box-shadow: 0 0 6px #9b59dc;"></div>
+  <div class="dot" style="background:#b06ce0; box-shadow: 0 0 6px #b06ce0;"></div>
+  <div class="dot" style="background:#a855f7; box-shadow: 0 0 6px #a855f7;"></div>
+  <div class="arrow" style="border-top: 8px solid #a855f7;"></div>
+</div>
+
+<!-- Dashboard -->
+<div class="row">
+  <div class="card t-violet">
+    <div class="card-head">
+      <div class="icon-wrap"><div class="glow"></div>🖥️</div>
+      <div><div class="title">Dashboard</div><div class="desc">Next.js 14 · TypeScript · Vercel · 12 Pages</div></div>
+    </div>
+    <div class="items">
+      <div class="item"><span class="ico">🏆</span> League Table</div>
+      <div class="item"><span class="ico breathe">📈</span> Points Race</div>
+      <div class="item"><span class="ico pulse">🔥</span> Form</div>
+      <div class="item"><span class="ico blink">⚡</span> Live Matches</div>
+      <div class="item"><span class="ico"><span class="spin-slow">⚽</span></span> Fixtures</div>
+      <div class="item"><span class="ico">🎯</span> Scorers</div>
+      <div class="item"><span class="ico">📊</span> Stats</div>
+      <div class="item"><span class="ico pulse">📡</span> Streaming</div>
+      <div class="item"><span class="ico">🌤️</span> Weather</div>
+      <div class="item"><span class="ico shield-pulse">🛡️</span> Quality</div>
+      <div class="item"><span class="ico">🔗</span> Lineage</div>
+      <div class="item"><span class="ico breathe">🏥</span> Health</div>
+    </div>
+    <div style="margin-top:12px;">
+      <span class="pill" style="background:rgba(0,255,133,0.08);color:#00ff85;border:1px solid rgba(0,255,133,0.15);font-size:10px;"><span class="blink">⚡</span> 8 Pages → CloudFront API</span>
+      <span class="pill" style="background:rgba(120,130,160,0.08);color:#8890a0;border:1px solid rgba(120,130,160,0.12);font-size:10px;">📁 4 Pages → Static Batch</span>
+    </div>
+  </div>
+</div>
+
+<div style="height:20px;"></div>
+
+<!-- Bottom row -->
+<div class="row">
+  <div class="card t-amber">
+    <div class="card-head">
+      <div class="icon-wrap"><div class="glow"></div><span class="spin" style="display:inline-block;">📡</span></div>
+      <div><div class="title">Monitoring</div><div class="desc">Observability</div></div>
+    </div>
+    <div class="items">
+      <div class="item"><span class="ico">📊</span> CloudWatch <div class="stream-bars" style="color:#fbbf24;margin-left:4px;"><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div></div></div>
+      <div class="item"><span class="ico pulse">🔔</span> 4 Alarms</div>
+      <div class="item"><span class="ico breathe">📬</span> 2 SNS</div>
+    </div>
+  </div>
+  <div class="card t-red">
+    <div class="card-head">
+      <div class="icon-wrap"><div class="glow"></div><span class="shield-pulse">🔐</span></div>
+      <div><div class="title">Security</div><div class="desc">Zero Static Keys</div></div>
+    </div>
+    <div class="items">
+      <div class="item"><span class="ico breathe">🔑</span> Secrets Manager</div>
+      <div class="item"><span class="ico">👤</span> IAM Roles</div>
+      <div class="item"><span class="ico"><span class="spin-slow">🔗</span></span> GitHub OIDC</div>
+    </div>
+  </div>
+  <div class="card t-indigo">
+    <div class="card-head">
+      <div class="icon-wrap"><div class="glow"></div><span class="spin">🏗️</span></div>
+      <div><div class="title">Infrastructure as Code</div><div class="desc">Reproducible</div></div>
+    </div>
+    <div class="items">
+      <div class="item"><span class="ico">🟪</span> Terraform <span class="detail">1,762 lines</span></div>
+      <div class="item"><span class="ico"><span class="spin-slow">⚙️</span></span> GitHub Actions</div>
+    </div>
+  </div>
+</div>
+
+<!-- Stats -->
+<div class="stats">
+  <div class="stat"><div class="s-icon breathe">☁️</div><div class="s-val">62</div><div class="s-label">AWS Resources</div></div>
+  <div class="stat"><div class="s-icon pulse">λ</div><div class="s-val">5</div><div class="s-label">Lambda Functions</div></div>
+  <div class="stat"><div class="s-icon">🖥️</div><div class="s-val">12</div><div class="s-label">Dashboard Pages</div></div>
+  <div class="stat"><div class="s-icon"><span class="spin-slow">🌍</span></div><div class="s-val">4</div><div class="s-label">API Endpoints</div></div>
+  <div class="stat"><div class="s-icon">📝</div><div class="s-val">1,762</div><div class="s-label">Terraform Lines</div></div>
+  <div class="stat"><div class="s-icon">💰</div><div class="s-val">~$3</div><div class="s-label">Monthly Cost</div></div>
+</div>
+
+<div class="footer">Built by <span>Andres Alvarez</span> · <span>andres-alvarez-de-cloud-epl-analytics.vercel.app</span></div>
+
+</body>
+</html>
