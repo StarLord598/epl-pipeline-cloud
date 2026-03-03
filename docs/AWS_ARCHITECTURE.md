@@ -102,8 +102,8 @@ graph TB
 
     CF --> APIGW
     APIGW --> L5
-    L5 -->|reads| STG
-    L5 -->|reads| RAW
+    L5 -->|reads daily| RAW
+    L5 -->|merges live scores| RAW
 
     L1 --> CW
     L2 --> CW
@@ -111,7 +111,7 @@ graph TB
     SFN --> CW
     ALARMS --> SNS_A
 
-    VERCEL -->|reads| RAW
+    VERCEL -->|fetches| CF
 
     GHA --> TF
     GHA -->|deploy| L1
@@ -145,7 +145,7 @@ graph TB
 | `live_matches` | Every 15 min (EventBridge) | football-data.org | Live/recent match scores |
 | `backfill` | Weekly Monday (EventBridge) | football-data.org | Full season backfill |
 | `data_quality` | Step Functions | S3 | Validates row counts, schema, nulls |
-| `api` | API Gateway | S3 | Serves standings, scorers, matches, health |
+| `api` | API Gateway | S3 | Serves standings, scorers, matches (with live merge), health |
 
 
 ### Step Functions Pipeline
@@ -164,10 +164,20 @@ Includes retry logic (2 retries with exponential backoff) and error catching at 
 |----------|-------------|-----------|
 | `GET /standings` | Latest league standings from S3 | 5 min |
 | `GET /scorers` | Top scorers from S3 | 5 min |
-| `GET /matches` | Latest match data from S3 | 5 min |
+| `GET /matches` | All matches with **live score merge** — overlays `raw/live_matches/` (updated every 15 min) on top of daily `raw/matches/` data | 5 min |
 | `GET /health` | Pipeline health + last run status | 1 min |
 
 CloudFront provides HTTPS, caching, and is custom-domain-ready (add ACM cert).
+
+#### Live Score Merge
+
+The `/matches` endpoint implements a live overlay pattern:
+1. Reads the latest daily match file from `raw/matches/` (380 matches, full season)
+2. Reads the latest live poll from `raw/live_matches/YYYY-MM-DD/` (today's date prefix)
+3. Merges by match ID — live scores replace daily data for in-progress matches
+4. Returns unified response with both sources listed in metadata
+
+This ensures the dashboard shows real-time scores during live matches (within ~15 min + 5 min CDN cache = max 20 min latency).
 
 ### Monitoring & Alerts
 
