@@ -48,17 +48,67 @@ export default function RacePage() {
   const [showAll, setShowAll] = useState(false);
 
   useEffect(() => {
-    fetch("/data/points_race.json")
-      .then((r) => r.json())
-      .then((d: PointsRow[]) => {
-        setData(d);
-        const maxMD = Math.max(...d.map((x) => x.matchday));
-        const teams = d
+    const API_BASE = process.env.NEXT_PUBLIC_CLOUD_API_URL || "https://dr81mm57l8sab.cloudfront.net";
+    fetch(`${API_BASE}/matches`)
+      .then((r) => { if (!r.ok) throw new Error("API error"); return r.json(); })
+      .then((apiData) => {
+        const matches = (apiData?.data?.matches ?? apiData?.matches ?? [])
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .filter((m: any) => m.status === "FINISHED");
+
+        // Build cumulative points per team per matchday
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const teamMatchdays: Record<string, Record<number, { pts: number }>> = {};
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        for (const m of matches as any[]) {
+          const home = (m.homeTeam?.name ?? "").replace(/ FC$/, "");
+          const away = (m.awayTeam?.name ?? "").replace(/ FC$/, "");
+          const hs = m.score?.fullTime?.home ?? 0;
+          const as_ = m.score?.fullTime?.away ?? 0;
+          const md = m.matchday;
+          const hPts = hs > as_ ? 3 : hs === as_ ? 1 : 0;
+          const aPts = as_ > hs ? 3 : hs === as_ ? 1 : 0;
+
+          if (!teamMatchdays[home]) teamMatchdays[home] = {};
+          if (!teamMatchdays[away]) teamMatchdays[away] = {};
+          teamMatchdays[home][md] = { pts: (teamMatchdays[home][md]?.pts ?? 0) + hPts };
+          teamMatchdays[away][md] = { pts: (teamMatchdays[away][md]?.pts ?? 0) + aPts };
+        }
+
+        // Convert to PointsRow[] with cumulative points
+        const rows: PointsRow[] = [];
+        for (const [team, mds] of Object.entries(teamMatchdays)) {
+          const sortedMDs = Object.keys(mds).map(Number).sort((a, b) => a - b);
+          let cumulative = 0;
+          for (const md of sortedMDs) {
+            cumulative += mds[md].pts;
+            rows.push({ team_name: team, matchday: md, matchday_points: mds[md].pts, cumulative_points: cumulative });
+          }
+        }
+
+        setData(rows);
+        const maxMD = rows.length > 0 ? Math.max(...rows.map((x) => x.matchday)) : 0;
+        const teams = rows
           .filter((r) => r.matchday === maxMD)
           .sort((a, b) => b.cumulative_points - a.cumulative_points)
           .slice(0, 6)
           .map((r) => r.team_name);
         setSelectedTeams(teams);
+      })
+      .catch(() => {
+        // Fallback to static JSON
+        fetch("/data/points_race.json")
+          .then((r) => r.json())
+          .then((d: PointsRow[]) => {
+            setData(d);
+            const maxMD = Math.max(...d.map((x) => x.matchday));
+            const teams = d
+              .filter((r) => r.matchday === maxMD)
+              .sort((a, b) => b.cumulative_points - a.cumulative_points)
+              .slice(0, 6)
+              .map((r) => r.team_name);
+            setSelectedTeams(teams);
+          });
       });
   }, []);
 

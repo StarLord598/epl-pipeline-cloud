@@ -60,8 +60,125 @@ export default function FormPage() {
   const [selectedTeam, setSelectedTeam] = useState<string>("Arsenal");
 
   useEffect(() => {
-    fetch("/data/rolling_form.json").then((r) => r.json()).then(setForm);
-    fetch("/data/scd2_standings.json").then((r) => r.json()).then(setScd2);
+    const API_BASE = process.env.NEXT_PUBLIC_CLOUD_API_URL || "https://dr81mm57l8sab.cloudfront.net";
+    
+    // Fetch matches to derive form data
+    fetch(`${API_BASE}/matches`)
+      .then((r) => { if (!r.ok) throw new Error("API error"); return r.json(); })
+      .then((apiData) => {
+        const matches = (apiData?.data?.matches ?? apiData?.matches ?? [])
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .filter((m: any) => m.status === "FINISHED");
+
+        // Build per-team results by matchday
+        const teamResults: Record<string, Array<{ matchday: number; result: string; pts: number; gf: number; ga: number }>> = {};
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        for (const m of matches as any[]) {
+          const home = (m.homeTeam?.name ?? "").replace(/ FC$/, "");
+          const away = (m.awayTeam?.name ?? "").replace(/ FC$/, "");
+          const hs = m.score?.fullTime?.home ?? 0;
+          const as_ = m.score?.fullTime?.away ?? 0;
+          const md = m.matchday;
+
+          if (!teamResults[home]) teamResults[home] = [];
+          if (!teamResults[away]) teamResults[away] = [];
+
+          teamResults[home].push({
+            matchday: md,
+            result: hs > as_ ? "W" : hs === as_ ? "D" : "L",
+            pts: hs > as_ ? 3 : hs === as_ ? 1 : 0,
+            gf: hs, ga: as_,
+          });
+          teamResults[away].push({
+            matchday: md,
+            result: as_ > hs ? "W" : hs === as_ ? "D" : "L",
+            pts: as_ > hs ? 3 : hs === as_ ? 1 : 0,
+            gf: as_, ga: hs,
+          });
+        }
+
+        // Build FormRow[] — latest entry per team with rolling 5 stats
+        const formRows: FormRow[] = [];
+        for (const [team, results] of Object.entries(teamResults)) {
+          const sorted = results.sort((a, b) => a.matchday - b.matchday);
+          const last5 = sorted.slice(-5);
+          const last5Form = last5.map((r) => r.result).join("");
+          const rolling5PPG = last5.length > 0 ? last5.reduce((s, r) => s + r.pts, 0) / last5.length : 0;
+          const rolling5GS = last5.reduce((s, r) => s + r.gf, 0);
+          const rolling5GC = last5.reduce((s, r) => s + r.ga, 0);
+
+          // Momentum based on rolling PPG
+          let momentum = "STEADY";
+          if (rolling5PPG >= 2.2) momentum = "HOT";
+          else if (rolling5PPG >= 1.5) momentum = "STEADY";
+          else if (rolling5PPG >= 0.8) momentum = "COOLING";
+          else momentum = "COLD";
+
+          const latest = sorted[sorted.length - 1];
+          formRows.push({
+            team_name: team,
+            matchday: latest?.matchday ?? 0,
+            result: latest?.result ?? "",
+            pts: latest?.pts ?? 0,
+            gf: latest?.gf ?? 0,
+            ga: latest?.ga ?? 0,
+            rolling_5_ppg: Math.round(rolling5PPG * 100) / 100,
+            rolling_5_goals_scored: rolling5GS,
+            rolling_5_goals_conceded: rolling5GC,
+            last_5_form: last5Form,
+            current_momentum: momentum,
+            recency_rank: 0,
+          });
+        }
+        // Rank by rolling PPG
+        formRows.sort((a, b) => b.rolling_5_ppg - a.rolling_5_ppg);
+        formRows.forEach((r, i) => { r.recency_rank = i + 1; });
+        setForm(formRows);
+
+        // Build SCD2 data — position history per team per matchday
+        const scd2Rows: SCD2Row[] = [];
+        const maxMD = Math.max(...matches.map((m: { matchday: number }) => m.matchday));
+        
+        // Compute standings at each matchday
+        for (let md = 1; md <= maxMD; md++) {
+          const teamStats: Record<string, { pts: number; gd: number; gf: number; played: number }> = {};
+          for (const [team, results] of Object.entries(teamResults)) {
+            const upToMD = results.filter((r) => r.matchday <= md);
+            if (upToMD.length === 0) continue;
+            teamStats[team] = {
+              pts: upToMD.reduce((s, r) => s + r.pts, 0),
+              gd: upToMD.reduce((s, r) => s + r.gf - r.ga, 0),
+              gf: upToMD.reduce((s, r) => s + r.gf, 0),
+              played: upToMD.length,
+            };
+          }
+          const sorted = Object.entries(teamStats)
+            .sort(([, a], [, b]) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf);
+          
+          sorted.forEach(([team, stats], idx) => {
+            scd2Rows.push({
+              team_name: team,
+              position: idx + 1,
+              valid_from_matchday: md,
+              valid_to_matchday: md,
+              valid_from_date: "",
+              valid_to_date: "",
+              points: stats.pts,
+              played: stats.played,
+              matchdays_held: 1,
+              prev_position: null,
+              movement: "SAME",
+              is_current: md === maxMD,
+            });
+          });
+        }
+        setScd2(scd2Rows);
+      })
+      .catch(() => {
+        // Fallback to static JSON
+        fetch("/data/rolling_form.json").then((r) => r.json()).then(setForm);
+        fetch("/data/scd2_standings.json").then((r) => r.json()).then(setScd2);
+      });
   }, []);
 
   // Group by momentum
