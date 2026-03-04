@@ -84,6 +84,15 @@ export default function StatsPage() {
   }, [teams, selected.length]);
 
   const MAX_RADAR_TEAMS = 3;
+  // Fixed distinct colors for radar overlay — always distinguishable
+  const RADAR_PALETTE = ["#EF0107", "#00C8FF", "#FFD700"]; // red, cyan, gold
+
+  // Get the radar color for a selected team (by selection order)
+  const getRadarColor = (teamName: string): string => {
+    const idx = selected.indexOf(teamName);
+    if (idx >= 0 && idx < RADAR_PALETTE.length) return RADAR_PALETTE[idx];
+    return TEAM_COLORS[teamName]?.primary || "#6b7280";
+  };
 
   const toggleTeam = (name: string) => {
     setSelected((prev) =>
@@ -156,7 +165,7 @@ export default function StatsPage() {
       <div className="flex flex-wrap gap-2 mb-6">
         {teams.map((t) => {
           const active = selected.includes(t.team_name);
-          const color = TEAM_COLORS[t.team_name]?.primary || "#6b7280";
+          const color = active ? getRadarColor(t.team_name) : "#6b7280";
           return (
             <button
               key={t.team_id}
@@ -196,14 +205,14 @@ export default function StatsPage() {
               <PolarGrid stroke="rgba(255,255,255,0.06)" />
               <PolarAngleAxis dataKey="metric" tick={{ fill: "#666", fontSize: 11 }} />
               {selected.map((sel) => {
-                const teamColor = TEAM_COLORS[sel]?.primary || "#00ff85";
+                const radarColor = getRadarColor(sel);
                 return (
                   <Radar
                     key={sel}
                     name={sel}
                     dataKey={sel}
-                    stroke={teamColor}
-                    fill={teamColor}
+                    stroke={radarColor}
+                    fill={radarColor}
                     fillOpacity={0.12}
                     strokeWidth={2}
                   />
@@ -214,10 +223,10 @@ export default function StatsPage() {
           {/* Legend */}
           <div className="flex justify-center gap-4 mt-2">
             {selected.map((sel) => {
-              const teamColor = TEAM_COLORS[sel]?.primary || "#00ff85";
+              const radarColor = getRadarColor(sel);
               return (
                 <div key={sel} className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: teamColor }} />
+                  <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: radarColor }} />
                   <span className="text-[11px] text-gray-400">{sel}</span>
                 </div>
               );
