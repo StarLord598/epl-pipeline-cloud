@@ -132,7 +132,6 @@ export default function StatsPage() {
     goalsAgainst: t.goals_against,
   }));
 
-  const primaryColor = TEAM_COLORS[selected[0]]?.primary || "#00ff85";
 
   return (
     <div className="animate-fade-in-up">
