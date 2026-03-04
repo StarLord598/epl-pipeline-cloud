@@ -95,7 +95,7 @@ export default function RacePage() {
             latestByTeam.set(r.team_name, r.cumulative_points);
           }
         }
-        const teams = [...latestByTeam.entries()]
+        const teams = Array.from(latestByTeam.entries())
           .sort((a, b) => b[1] - a[1])
           .slice(0, 6)
           .map(([name]) => name);
