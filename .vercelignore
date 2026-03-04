@@ -3,7 +3,7 @@ demo-screenshots/
 airflow/
 dags/
 scripts/
-data/
+/data/
 *.mov
 *.mp4
 *.terraform*
