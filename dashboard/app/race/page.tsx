@@ -115,6 +115,14 @@ export default function RacePage() {
   const allTeams = Array.from(new Set(data.map((r) => r.team_name)));
   const maxMatchday = data.length > 0 ? Math.max(...data.map((r) => r.matchday)) : 0;
 
+  // Helper: get latest cumulative points for a team (handles teams at different matchdays)
+  const getLatestPoints = (team: string): number => {
+    const teamRows = data.filter((r) => r.team_name === team);
+    if (teamRows.length === 0) return 0;
+    const latestMD = Math.max(...teamRows.map((r) => r.matchday));
+    return teamRows.find((r) => r.matchday === latestMD)?.cumulative_points ?? 0;
+  };
+
   // Pivot data for Recharts: { matchday: 1, Arsenal: 3, Chelsea: 1, ... }
   const chartData: Record<string, number | string>[] = [];
   const matchdays = Array.from(new Set(data.map((r) => r.matchday))).sort((a, b) => a - b);
@@ -210,13 +218,9 @@ export default function RacePage() {
         <h2 className="text-[11px] text-gray-500 uppercase tracking-wider mb-3 font-medium">Select Teams</h2>
         <div className="flex flex-wrap gap-2">
           {allTeams
-            .sort((a, b) => {
-              const aP = data.find((r) => r.team_name === a && r.matchday === maxMatchday)?.cumulative_points ?? 0;
-              const bP = data.find((r) => r.team_name === b && r.matchday === maxMatchday)?.cumulative_points ?? 0;
-              return bP - aP;
-            })
+            .sort((a, b) => getLatestPoints(b) - getLatestPoints(a))
             .map((team) => {
-              const pts = data.find((r) => r.team_name === team && r.matchday === maxMatchday)?.cumulative_points ?? 0;
+              const pts = getLatestPoints(team);
               const active = selectedTeams.includes(team);
               return (
                 <button
