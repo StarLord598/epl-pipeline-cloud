@@ -71,7 +71,32 @@ export default function QualityPage() {
   const [data, setData] = useState<QualityData | null>(null);
 
   useEffect(() => {
-    fetch("/data/quality.json").then((r) => r.json()).then(setData);
+    async function load() {
+      const qualityRes = await fetch("/data/quality.json");
+      const qualityData = await qualityRes.json();
+
+      // Override stale freshness timestamps with live Cloud API data
+      try {
+        const healthRes = await fetch("https://dr81mm57l8sab.cloudfront.net/health");
+        const health = await healthRes.json();
+        if (health.checks) {
+          const liveModifieds = Object.values(health.checks)
+            .map((c: Record<string, unknown>) => c.last_modified as string)
+            .filter(Boolean)
+            .sort()
+            .reverse();
+          if (liveModifieds.length > 0 && qualityData.freshness) {
+            qualityData.freshness = qualityData.freshness.map((f: Record<string, unknown>) => ({
+              ...f,
+              last_updated: liveModifieds[0],
+            }));
+          }
+        }
+      } catch { /* fall back to static data */ }
+
+      setData(qualityData);
+    }
+    load();
   }, []);
 
   if (!data) {
