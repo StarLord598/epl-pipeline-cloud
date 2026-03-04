@@ -77,7 +77,7 @@ export default function LeagueTablePage() {
             goals_against: ga,
             goal_difference: t.goalDifference ?? (gf - ga),
             points: pts,
-            form: (t.form ?? "").replace(/,/g, " "),
+            form: (t.form ?? ""),
             win_rate: played > 0 ? Math.round((won / played) * 1000) / 10 : 0,
             points_pct: played > 0 ? Math.round((pts / (played * 3)) * 1000) / 10 : 0,
             goals_per_game: played > 0 ? Math.round((gf / played) * 100) / 100 : 0,
