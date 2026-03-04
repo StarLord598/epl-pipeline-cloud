@@ -81,7 +81,7 @@ export default function QualityPage() {
         const health = await healthRes.json();
         if (health.checks) {
           const liveModifieds = Object.values(health.checks)
-            .map((c: Record<string, unknown>) => c.last_modified as string)
+            .map((c) => (c as Record<string, unknown>).last_modified as string)
             .filter(Boolean)
             .sort()
             .reverse();
