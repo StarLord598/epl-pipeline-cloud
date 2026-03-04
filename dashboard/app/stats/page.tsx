@@ -155,7 +155,16 @@ export default function StatsPage() {
               }`}
               style={active ? { background: `${color}20`, borderColor: color, color } : undefined}
             >
-              {t.team_name.split(" ")[0]}
+              {(() => {
+                const n = t.team_name;
+                if (n.startsWith("Manchester")) return n === "Manchester City" ? "Man City" : "Man Utd";
+                if (n.startsWith("Brighton")) return "Brighton";
+                if (n.startsWith("Wolverhampton")) return "Wolves";
+                if (n.startsWith("Nottingham")) return "Nott'm";
+                if (n.startsWith("West Ham")) return "West Ham";
+                if (n.startsWith("Crystal")) return "C. Palace";
+                return n.split(" ")[0];
+              })()}
             </button>
           );
         })}

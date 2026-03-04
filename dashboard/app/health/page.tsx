@@ -121,8 +121,9 @@ export default async function HealthPage() {
   const freshnessMinutesLive = lastIngestLive
     ? Math.round((Date.now() - new Date(lastIngestLive).getTime()) / 60000)
     : null;
+  // Daily pipeline runs at 6 AM UTC — SLA: <24h OK, <28h WARN, >28h ERROR
   const slaStatusLive = freshnessMinutesLive !== null
-    ? freshnessMinutesLive <= 60 ? "OK" : freshnessMinutesLive <= 240 ? "WARN" : "ERROR"
+    ? freshnessMinutesLive <= 1440 ? "OK" : freshnessMinutesLive <= 1680 ? "WARN" : "ERROR"
     : null;
   const matchCountLive = 380; // Full season
 
