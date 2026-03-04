@@ -94,31 +94,40 @@ def handle_data_endpoint(prefix: str, is_matches: bool = False) -> dict:
 
     # For /matches, overlay live match data on top of daily data
     if is_matches:
-        # Use today's date prefix to avoid listing all historical live files
-        from datetime import datetime, timezone
-        today_prefix = f"raw/live_matches/{datetime.now(timezone.utc).strftime('%Y-%m-%d')}/"
-        live_latest = get_latest_object(today_prefix)
-        if not live_latest:
-            # Fallback: scan recent files across all dates
-            live_latest = get_latest_object("raw/live_matches/")
-        if live_latest and live_latest["Key"].endswith(".json"):
-            live_ok, live_data, _ = read_s3_json(live_latest["Key"])
-            if live_ok:
-                live_matches = live_data.get("matches", [])
-                if live_matches:
-                    # Build lookup of live matches by ID
-                    live_by_id = {m["id"]: m for m in live_matches}
-                    # Overlay: replace daily matches with live versions
-                    base_matches = data.get("matches", [])
-                    merged = []
-                    for m in base_matches:
-                        if m["id"] in live_by_id:
-                            merged.append(live_by_id[m["id"]])
-                        else:
-                            merged.append(m)
-                    data["matches"] = merged
-                    sources.append(live_latest["Key"])
-                    logger.info(f"Merged {len(live_by_id)} live matches from {live_latest['Key']}")
+        from datetime import datetime, timezone, timedelta
+        now_utc = datetime.now(timezone.utc)
+        # Check today + yesterday (handles UTC date rollover after games finish)
+        date_prefixes = [
+            f"raw/live_matches/{now_utc.strftime('%Y-%m-%d')}/",
+            f"raw/live_matches/{(now_utc - timedelta(days=1)).strftime('%Y-%m-%d')}/",
+        ]
+
+        # Collect live match data from both days, merge all into one lookup
+        all_live_by_id = {}
+        live_sources = []
+        for prefix in date_prefixes:
+            live_latest = get_latest_object(prefix)
+            if live_latest and live_latest["Key"].endswith(".json"):
+                live_ok, live_data, _ = read_s3_json(live_latest["Key"])
+                if live_ok:
+                    for m in live_data.get("matches", []):
+                        mid = m["id"]
+                        # Keep the more recent/complete version (FINISHED > IN_PLAY > TIMED)
+                        if mid not in all_live_by_id or m.get("status") == "FINISHED":
+                            all_live_by_id[mid] = m
+                    live_sources.append(live_latest["Key"])
+
+        if all_live_by_id:
+            base_matches = data.get("matches", [])
+            merged = []
+            for m in base_matches:
+                if m["id"] in all_live_by_id:
+                    merged.append(all_live_by_id[m["id"]])
+                else:
+                    merged.append(m)
+            data["matches"] = merged
+            sources.extend(live_sources)
+            logger.info(f"Merged {len(all_live_by_id)} live matches from {live_sources}")
 
     return respond(200, {
         "data": data,
