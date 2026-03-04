@@ -14,14 +14,14 @@ const STADIUMS = [
   { team_name: "Crystal Palace", stadium_name: "Selhurst Park", lat: 51.3983, lon: -0.0856 },
   { team_name: "Everton", stadium_name: "Goodison Park", lat: 53.4388, lon: -2.9663 },
   { team_name: "Fulham", stadium_name: "Craven Cottage", lat: 51.475, lon: -0.2217 },
-  { team_name: "Ipswich Town", stadium_name: "Portman Road", lat: 52.0545, lon: 1.1447 },
-  { team_name: "Leicester City", stadium_name: "King Power Stadium", lat: 52.6203, lon: -1.1421 },
+  { team_name: "Burnley", stadium_name: "Turf Moor", lat: 53.7890, lon: -2.2302 },
+  { team_name: "Leeds United", stadium_name: "Elland Road", lat: 53.7779, lon: -1.5722 },
   { team_name: "Liverpool", stadium_name: "Anfield", lat: 53.4308, lon: -2.9609 },
   { team_name: "Manchester City", stadium_name: "Etihad Stadium", lat: 53.4831, lon: -2.2004 },
   { team_name: "Manchester United", stadium_name: "Old Trafford", lat: 53.4631, lon: -2.2913 },
   { team_name: "Newcastle United", stadium_name: "St James' Park", lat: 54.9756, lon: -1.6217 },
   { team_name: "Nottingham Forest", stadium_name: "City Ground", lat: 52.94, lon: -1.1325 },
-  { team_name: "Southampton", stadium_name: "St Mary's Stadium", lat: 50.9058, lon: -1.3911 },
+  { team_name: "Sunderland AFC", stadium_name: "Stadium of Light", lat: 54.9146, lon: -1.3882 },
   { team_name: "Tottenham", stadium_name: "Tottenham Hotspur Stadium", lat: 51.6042, lon: -0.0662 },
   { team_name: "West Ham", stadium_name: "London Stadium", lat: 51.5387, lon: -0.0166 },
   { team_name: "Wolverhampton", stadium_name: "Molineux Stadium", lat: 52.5903, lon: -2.1306 },
@@ -164,6 +164,9 @@ export default function WeatherPage() {
     }
 
     fetchLiveWeather();
+    // Auto-refresh every 5 minutes
+    const interval = setInterval(fetchLiveWeather, 5 * 60 * 1000);
+    return () => clearInterval(interval);
   }, []);
 
   if (loading) {
