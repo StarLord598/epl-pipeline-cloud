@@ -83,34 +83,46 @@ export default function StatsPage() {
     }
   }, [teams, selected.length]);
 
+  const MAX_RADAR_TEAMS = 3;
+
   const toggleTeam = (name: string) => {
     setSelected((prev) =>
       prev.includes(name)
         ? prev.filter((t) => t !== name)
-        : prev.length < 4
+        : prev.length < MAX_RADAR_TEAMS
         ? [...prev, name]
-        : prev
+        : [...prev.slice(1), name] // drop oldest, add new
     );
   };
 
-  // Radar data for selected teams (first team selected)
-  const teamData = teams.find((t) => t.team_name === selected[0]);
+  // Radar data for all selected teams (up to 3 overlaid)
   const maxValues = teams.reduce((acc, t) => ({
     goals_for: Math.max(acc.goals_for, t.goals_for),
     won: Math.max(acc.won, t.won),
     points: Math.max(acc.points, t.points),
     win_rate: Math.max(acc.win_rate, t.win_rate),
     goals_per_game: Math.max(acc.goals_per_game, t.goals_per_game),
-  }), { goals_for: 1, won: 1, points: 1, win_rate: 1, goals_per_game: 1 });
+    goals_conceded_per_game: Math.max(acc.goals_conceded_per_game, t.goals_conceded_per_game || 1),
+  }), { goals_for: 1, won: 1, points: 1, win_rate: 1, goals_per_game: 1, goals_conceded_per_game: 1 });
 
-  const radarData = teamData ? [
-    { metric: "Goals",    value: Math.round((teamData.goals_for / maxValues.goals_for) * 100) },
-    { metric: "Wins",     value: Math.round((teamData.won / maxValues.won) * 100) },
-    { metric: "Points",   value: Math.round((teamData.points / maxValues.points) * 100) },
-    { metric: "Win Rate", value: Math.round((teamData.win_rate / maxValues.win_rate) * 100) },
-    { metric: "Goals/G",  value: Math.round((teamData.goals_per_game / maxValues.goals_per_game) * 100) },
-    { metric: "Defence",  value: Math.round(((100 - teamData.goals_conceded_per_game * 10) / 100) * 100) },
-  ] : [];
+  const metrics = ["Goals", "Wins", "Points", "Win Rate", "Goals/G", "Defence"];
+
+  const radarData = metrics.map((metric) => {
+    const row: Record<string, string | number> = { metric };
+    for (const sel of selected) {
+      const td = teams.find((t) => t.team_name === sel);
+      if (!td) continue;
+      const val =
+        metric === "Goals" ? (td.goals_for / maxValues.goals_for) * 100 :
+        metric === "Wins" ? (td.won / maxValues.won) * 100 :
+        metric === "Points" ? (td.points / maxValues.points) * 100 :
+        metric === "Win Rate" ? (td.win_rate / maxValues.win_rate) * 100 :
+        metric === "Goals/G" ? (td.goals_per_game / maxValues.goals_per_game) * 100 :
+        ((1 - (td.goals_conceded_per_game || 0) / maxValues.goals_conceded_per_game) * 100);
+      row[sel] = Math.round(val);
+    }
+    return row;
+  });
 
   // Bar chart: goals for vs against
   const goalData = teams.map((t) => ({
@@ -120,7 +132,6 @@ export default function StatsPage() {
     goalsAgainst: t.goals_against,
   }));
 
-  const colors = TEAM_COLORS[selected[0]]?.primary || "#00ff85";
 
   return (
     <div className="animate-fade-in-up">
@@ -178,23 +189,41 @@ export default function StatsPage() {
         {/* Radar chart */}
         <div className="glass rounded-2xl p-4 sm:p-5">
           <h2 className="text-[11px] text-gray-500 uppercase tracking-wider mb-4 font-medium">
-            Team Profile — {selected[0]}
+            Team Profile — {selected.join(" vs ")}
           </h2>
           <ResponsiveContainer width="100%" height={280}>
             <RadarChart data={radarData}>
               <PolarGrid stroke="rgba(255,255,255,0.06)" />
               <PolarAngleAxis dataKey="metric" tick={{ fill: "#666", fontSize: 11 }} />
-              <Radar
-                name={selected[0]}
-                dataKey="value"
-                stroke={colors}
-                fill={colors}
-                fillOpacity={0.15}
-                strokeWidth={2}
-              />
+              {selected.map((sel) => {
+                const teamColor = TEAM_COLORS[sel]?.primary || "#00ff85";
+                return (
+                  <Radar
+                    key={sel}
+                    name={sel}
+                    dataKey={sel}
+                    stroke={teamColor}
+                    fill={teamColor}
+                    fillOpacity={0.12}
+                    strokeWidth={2}
+                  />
+                );
+              })}
             </RadarChart>
           </ResponsiveContainer>
-          <p className="text-gray-600 text-[11px] text-center mt-2">Normalized 0-100 vs league best</p>
+          {/* Legend */}
+          <div className="flex justify-center gap-4 mt-2">
+            {selected.map((sel) => {
+              const teamColor = TEAM_COLORS[sel]?.primary || "#00ff85";
+              return (
+                <div key={sel} className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: teamColor }} />
+                  <span className="text-[11px] text-gray-400">{sel}</span>
+                </div>
+              );
+            })}
+          </div>
+          <p className="text-gray-600 text-[11px] text-center mt-1">Normalized 0-100 vs league best · Max {MAX_RADAR_TEAMS} teams</p>
         </div>
 
         {/* Points comparison */}
