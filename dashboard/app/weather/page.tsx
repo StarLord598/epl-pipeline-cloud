@@ -142,7 +142,7 @@ export default function WeatherPage() {
             weather_description: weatherDescription(code),
             pitch_condition: derivePitchCondition(code, precip, temp),
             temperature_class: deriveTemperatureClass(temp),
-            fetched_at: current.time,
+            fetched_at: new Date().toISOString(),
           };
         });
 
