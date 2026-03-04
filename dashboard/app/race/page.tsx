@@ -87,12 +87,18 @@ export default function RacePage() {
         }
 
         setData(rows);
-        const maxMD = rows.length > 0 ? Math.max(...rows.map((x) => x.matchday)) : 0;
-        const teams = rows
-          .filter((r) => r.matchday === maxMD)
-          .sort((a, b) => b.cumulative_points - a.cumulative_points)
+        // Get latest points per team (teams may be at different matchdays)
+        const latestByTeam = new Map<string, number>();
+        for (const r of rows) {
+          const prev = latestByTeam.get(r.team_name);
+          if (prev === undefined || r.cumulative_points > prev) {
+            latestByTeam.set(r.team_name, r.cumulative_points);
+          }
+        }
+        const teams = Array.from(latestByTeam.entries())
+          .sort((a, b) => b[1] - a[1])
           .slice(0, 6)
-          .map((r) => r.team_name);
+          .map(([name]) => name);
         setSelectedTeams(teams);
       })
       .catch(() => {
