@@ -210,7 +210,7 @@ export default function WeatherPage() {
           {error && <p className="text-yellow-400 text-sm mt-1">⚠️ {error}</p>}
           {data[0]?.fetched_at && (
             <p className="text-gray-500 text-sm mt-1">
-              Live as of: {new Date(data[0].fetched_at).toLocaleString()}
+              Live as of: {new Date(data[0].fetched_at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "medium", timeZoneName: "short" })}
             </p>
           )}
         </div>
