@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Analytics } from "@vercel/analytics/react";
 import "./globals.css";
 import Navigation from "@/components/Navigation";
 
@@ -33,6 +34,8 @@ export default function RootLayout({
         <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 animate-fade-in">
           {children}
         </main>
+
+        <Analytics />
 
         <footer className="border-t border-white/[0.04] mt-16">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
