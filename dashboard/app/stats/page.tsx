@@ -114,7 +114,7 @@ export default function StatsPage() {
 
   // Bar chart: goals for vs against
   const goalData = teams.map((t) => ({
-    name: t.team_name.split(" ")[0],
+    name: t.team_name === "Man City" ? "City" : t.team_name === "Man United" ? "Utd" : t.team_name.includes("Wolverhampton") ? "Wolves" : t.team_name.includes("Brighton") ? "Brighton" : t.team_name.includes("Nottingham") ? "Forest" : t.team_name.includes("West Ham") ? "West Ham" : t.team_name.includes("Crystal") ? "Crystal" : t.team_name.split(" ")[0],
     fullName: t.team_name,
     goalsFor: t.goals_for,
     goalsAgainst: t.goals_against,
@@ -157,13 +157,17 @@ export default function StatsPage() {
             >
               {(() => {
                 const n = t.team_name;
-                if (n.startsWith("Manchester")) return n === "Manchester City" ? "Man City" : "Man Utd";
-                if (n.startsWith("Brighton")) return "Brighton";
-                if (n.startsWith("Wolverhampton")) return "Wolves";
-                if (n.startsWith("Nottingham")) return "Nott'm";
-                if (n.startsWith("West Ham")) return "West Ham";
-                if (n.startsWith("Crystal")) return "C. Palace";
-                return n.split(" ")[0];
+                if (n === "Man City") return "Man City";
+                if (n === "Man United") return "Man Utd";
+                if (n.startsWith("Manchester")) return n.includes("City") ? "Man City" : "Man Utd";
+                if (n.includes("Brighton")) return "Brighton";
+                if (n.includes("Wolverhampton") || n.includes("Wolves")) return "Wolves";
+                if (n.includes("Nottingham")) return "Nott'm";
+                if (n.includes("West Ham")) return "West Ham";
+                if (n.includes("Crystal")) return "C. Palace";
+                if (n.includes("Bournemouth")) return "B'mouth";
+                if (n.includes("Sunderland")) return "Sunderland";
+                return n.length > 10 ? n.split(" ")[0] : n;
               })()}
             </button>
           );
