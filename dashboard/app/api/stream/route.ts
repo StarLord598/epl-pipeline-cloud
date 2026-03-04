@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
-import { readFileSync } from "fs";
-import { join } from "path";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 300; // Allow long-running SSE streams (5 min)
+
+const S3_STREAM_URL =
+  process.env.STREAM_EVENTS_URL ||
+  "https://epl-pipeline-dashboard-dev-606476260881.s3.us-east-2.amazonaws.com/data/stream_events.json";
 
 interface MatchEvent {
   event_id: string;
@@ -21,18 +24,38 @@ interface MatchEvent {
   outcome: string | null;
 }
 
+// Cache the fetched data in-memory for the serverless function lifetime
+let cachedEvents: Record<string, MatchEvent[]> | null = null;
+
+async function loadEvents(): Promise<Record<string, MatchEvent[]>> {
+  if (cachedEvents) return cachedEvents;
+  const res = await fetch(S3_STREAM_URL, { next: { revalidate: 3600 } });
+  if (!res.ok) throw new Error(`Failed to fetch stream events: ${res.status}`);
+  cachedEvents = await res.json();
+  return cachedEvents!;
+}
+
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const matchId = url.searchParams.get("match_id");
   const speed = Math.max(1, Math.min(parseInt(url.searchParams.get("speed") ?? "10", 10), 100));
 
+  // If no match_id, return the match index
   if (!matchId) {
-    return NextResponse.json({ error: "match_id required" }, { status: 400 });
+    try {
+      const allEvents = await loadEvents();
+      const index = (allEvents as Record<string, unknown>)["_index"];
+      if (index) {
+        return NextResponse.json({ _index: index });
+      }
+      return NextResponse.json({ error: "match_id required" }, { status: 400 });
+    } catch {
+      return NextResponse.json({ error: "Stream data not available" }, { status: 500 });
+    }
   }
 
   try {
-    const filePath = join(process.cwd(), "public", "data", "stream_events.json");
-    const allEvents: Record<string, MatchEvent[]> = JSON.parse(readFileSync(filePath, "utf-8"));
+    const allEvents = await loadEvents();
     const events = allEvents[matchId];
 
     if (!events || events.length === 0) {

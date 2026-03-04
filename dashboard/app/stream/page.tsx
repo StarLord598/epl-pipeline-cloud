@@ -74,7 +74,7 @@ export default function StreamPage() {
 
   // Load match index
   useEffect(() => {
-    fetch("/data/stream_events.json")
+    fetch("/api/stream")
       .then((r) => r.json())
       .then((d) => {
         if (d._index) setMatches(d._index);

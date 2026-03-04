@@ -10,7 +10,7 @@ import { TeamStanding, TEAM_COLORS } from "@/lib/data";
 
 export default function StatsPage() {
   const [teams, setTeams] = useState<TeamStanding[]>([]);
-  const [selected, setSelected] = useState<string[]>(["Manchester City", "Arsenal", "Liverpool"]);
+  const [selected, setSelected] = useState<string[]>([]);
 
   useEffect(() => {
     const API_BASE = process.env.NEXT_PUBLIC_CLOUD_API_URL || "https://dr81mm57l8sab.cloudfront.net";
@@ -72,6 +72,16 @@ export default function StatsPage() {
           });
       });
   }, []);
+
+  // Set default selection from actual loaded team names
+  useEffect(() => {
+    if (teams.length > 0 && selected.length === 0) {
+      const defaults = ["Man City", "Arsenal", "Liverpool"]
+        .map((n) => teams.find((t) => t.team_name.includes(n))?.team_name)
+        .filter(Boolean) as string[];
+      setSelected(defaults.length > 0 ? defaults : [teams[0].team_name]);
+    }
+  }, [teams, selected.length]);
 
   const toggleTeam = (name: string) => {
     setSelected((prev) =>

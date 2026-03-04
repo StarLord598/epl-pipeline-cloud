@@ -1,0 +1,9 @@
+infra/
+demo-screenshots/
+airflow/
+dags/
+scripts/
+data/
+*.mov
+*.mp4
+*.terraform*
