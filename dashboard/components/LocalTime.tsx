@@ -9,8 +9,11 @@ export default function LocalTime({ iso, fallback = "—" }: { iso: string | nul
     if (iso) {
       setFormatted(
         new Date(iso).toLocaleString(undefined, {
-          dateStyle: "medium",
-          timeStyle: "short",
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+          hour: "numeric",
+          minute: "2-digit",
           timeZoneName: "short",
         })
       );
