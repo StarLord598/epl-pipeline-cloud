@@ -1,6 +1,7 @@
 import Link from "next/link";
 import path from "path";
 import fs from "fs";
+import LocalTime from "@/components/LocalTime";
 const API_BASE = process.env.NEXT_PUBLIC_CLOUD_API_URL || "https://dr81mm57l8sab.cloudfront.net";
 
 export const dynamic = "force-dynamic";
@@ -174,7 +175,7 @@ export default async function HealthPage() {
         <div className="glass rounded-2xl p-5">
           <div className="text-gray-500 text-[11px] uppercase tracking-wider font-medium">Last Ingest Timestamp</div>
           <div className="text-sm font-mono mt-3 text-gray-200 break-all">
-            {lastIngest ?? "—"}
+            <LocalTime iso={lastIngest} />
           </div>
         </div>
       </div>
@@ -210,7 +211,7 @@ export default async function HealthPage() {
           </div>
           <p className="text-[10px] text-gray-600 mt-3">
             Endpoint: <code className="px-1.5 py-0.5 bg-white/[0.04] rounded border border-white/[0.06]">{API_BASE}</code>
-            {" · "}Checked: {new Date(cloudHealth.timestamp).toLocaleString("en-US", { timeZone: "America/New_York" })} ET
+            {" · "}Checked: <LocalTime iso={cloudHealth.timestamp} />
           </p>
         </div>
       )}

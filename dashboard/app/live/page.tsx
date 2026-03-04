@@ -60,14 +60,14 @@ function getStatusBadge(status: string, minute: number | null, utcDate: string) 
     case "SCHEDULED":
     case "Not Started": {
       const kickoff = new Date(utcDate);
-      const timeStr = kickoff.toLocaleTimeString("en-US", {
+      const timeStr = kickoff.toLocaleTimeString(undefined, {
         hour: "numeric",
         minute: "2-digit",
-        timeZone: "America/New_York",
+        timeZoneName: "short",
       });
       return (
         <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-white/[0.03] text-gray-500 text-xs font-medium border border-white/[0.06]">
-          {timeStr} ET
+          {timeStr}
         </span>
       );
     }
@@ -148,7 +148,7 @@ function MatchCard({ match }: { match: LiveMatch }) {
             weekday: "short",
             month: "short",
             day: "numeric",
-            timeZone: "America/New_York",
+            
           })}
         </span>
       </div>
@@ -317,7 +317,7 @@ export default function LivePage() {
       weekday: "long",
       month: "long",
       day: "numeric",
-      timeZone: "America/New_York",
+      
     });
     if (!acc[d]) acc[d] = [];
     acc[d].push(m);
@@ -397,7 +397,7 @@ export default function LivePage() {
             <div className="text-right hidden sm:block">
               <p className="text-[10px] text-gray-600 uppercase tracking-wider">Last updated</p>
               <p className="text-xs text-gray-400 tabular-nums">
-                {lastUpdated.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/New_York" })} ET
+                {lastUpdated.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", timeZoneName: "short" })}
               </p>
             </div>
           )}
